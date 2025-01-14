@@ -55,19 +55,26 @@ public class ServerProperties {
       String accessKey = properties.getProperty("s3.accessKey." + i);
       String secretKey = properties.getProperty("s3.secretKey." + i);
       String sessionToken = properties.getProperty("s3.sessionToken." + i);
+      String serviceEndpoint = properties.getProperty("s3.serviceEndpoint." + i);
       if ((bucketPath == null || region == null || awsRoleArn == null)
           && (accessKey == null || secretKey == null || sessionToken == null)) {
         break;
       }
-      S3StorageConfig s3StorageConfig =
+
+      S3StorageConfig.S3StorageConfigBuilder s3StorageConfigBuilder =
           S3StorageConfig.builder()
               .bucketPath(bucketPath)
               .region(region)
               .awsRoleArn(awsRoleArn)
               .accessKey(accessKey)
               .secretKey(secretKey)
-              .sessionToken(sessionToken)
-              .build();
+              .sessionToken(sessionToken);
+
+      if (serviceEndpoint != null && !serviceEndpoint.isEmpty()) {
+        s3StorageConfigBuilder.serviceEndpoint(serviceEndpoint);
+      }
+      S3StorageConfig s3StorageConfig = s3StorageConfigBuilder.build();
+
       s3BucketConfigMap.put(bucketPath, s3StorageConfig);
       i++;
     }

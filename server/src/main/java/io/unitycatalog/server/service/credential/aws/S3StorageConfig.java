@@ -5,7 +5,7 @@ import lombok.Getter;
 import lombok.ToString;
 
 @Getter
-@Builder
+@Builder(builderClassName = "S3StorageConfigBuilder")
 @ToString
 public class S3StorageConfig {
   private final String bucketPath;
@@ -14,4 +14,5 @@ public class S3StorageConfig {
   private final String accessKey;
   private final String secretKey;
   private final String sessionToken;
+  private final String serviceEndpoint;
 }

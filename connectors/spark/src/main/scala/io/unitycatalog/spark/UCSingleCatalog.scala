@@ -3,6 +3,8 @@ package io.unitycatalog.spark
 import io.unitycatalog.client.{ApiClient, ApiException}
 import io.unitycatalog.client.api.{SchemasApi, TablesApi, TemporaryCredentialsApi}
 import io.unitycatalog.client.model.{ColumnInfo, ColumnTypeName, CreateSchema, CreateTable, DataSourceFormat, GenerateTemporaryPathCredential, GenerateTemporaryTableCredential, ListTablesResponse, PathOperation, SchemaInfo, TableOperation, TableType, TemporaryCredentials}
+import io.unitycatalog.server.service.credential.aws.S3StorageConfig
+import io.unitycatalog.server.utils.ServerProperties
 
 import java.net.URI
 import java.util
@@ -20,6 +22,8 @@ import org.apache.spark.sql.util.CaseInsensitiveStringMap
 import scala.collection.convert.ImplicitConversions._
 import scala.collection.JavaConverters._
 import scala.language.existentials
+
+
 
 /**
  * A Spark catalog plugin to get/manage tables in Unity Catalog.
@@ -166,6 +170,8 @@ object UCSingleCatalog {
       temporaryCredentials: TemporaryCredentials): Map[String, String] = {
     if (scheme == "s3") {
       val awsCredentials = temporaryCredentials.getAwsTempCredentials
+      val s3StorageConfig = ServerProperties.getInstance.getS3Configurations.get(TableCatalog.PROP_LOCATION)
+
       Map(
         // TODO: how to support s3:// properly?
         "fs.s3a.access.key" -> awsCredentials.getAccessKeyId,
@@ -173,7 +179,8 @@ object UCSingleCatalog {
         "fs.s3a.session.token" -> awsCredentials.getSessionToken,
         "fs.s3a.path.style.access" -> "true",
         "fs.s3.impl.disable.cache" -> "true",
-        "fs.s3a.impl.disable.cache" -> "true"
+        "fs.s3a.impl.disable.cache" -> "true",
+        "fs.s3a.endpoint" -> s3StorageConfig.getServiceEndpoint
       )
     } else if (scheme == "gs") {
       val gcsCredentials = temporaryCredentials.getGcpOauthToken

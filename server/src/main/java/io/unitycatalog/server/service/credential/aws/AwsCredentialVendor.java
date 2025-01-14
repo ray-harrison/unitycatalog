@@ -4,6 +4,7 @@ import io.unitycatalog.server.exception.BaseException;
 import io.unitycatalog.server.exception.ErrorCode;
 import io.unitycatalog.server.service.credential.CredentialContext;
 import io.unitycatalog.server.utils.ServerProperties;
+import java.net.URI;
 import java.time.Duration;
 import java.util.Map;
 import java.util.UUID;
@@ -72,6 +73,13 @@ public class AwsCredentialVendor {
     return StsClient.builder()
         .credentialsProvider(credentialsProvider)
         .region(Region.of(s3StorageConfig.getRegion()))
+        .applyMutation(
+            builder -> {
+              if (s3StorageConfig.getServiceEndpoint() != null
+                  && !s3StorageConfig.getServiceEndpoint().isEmpty()) {
+                builder.endpointOverride(URI.create(s3StorageConfig.getServiceEndpoint()));
+              }
+            })
         .build();
   }
 }

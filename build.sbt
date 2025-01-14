@@ -474,6 +474,7 @@ lazy val controlModels = (project in file("server") / "target" / "controlmodels"
 
 lazy val cli = (project in file("examples") / "cli")
   .dependsOn(server % "test->test")
+  .dependsOn(server % "compile->compile")
   .dependsOn(serverModels, controlModels)
   .dependsOn(client % "compile->compile;test->test")
   .dependsOn(controlApi % "compile->compile")
@@ -542,6 +543,7 @@ lazy val serverShaded = (project in file("server-shaded"))
 
 lazy val spark = (project in file("connectors/spark"))
   .dependsOn(client)
+  .dependsOn(server % "compile->compile")
   .settings(
     name := s"$artifactNamePrefix-spark",
     scalaVersion := scala212,

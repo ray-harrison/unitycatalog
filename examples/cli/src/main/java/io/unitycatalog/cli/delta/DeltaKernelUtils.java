@@ -3,6 +3,8 @@ package io.unitycatalog.cli.delta;
 import static io.unitycatalog.cli.utils.CliUtils.EMPTY;
 
 import de.vandermeer.asciitable.AsciiTable;
+import de.vandermeer.asciitable.CWC_LongestLine;
+import de.vandermeer.asciithemes.TA_GridThemes;
 import io.delta.kernel.*;
 import io.delta.kernel.data.Row;
 import io.delta.kernel.defaults.engine.DefaultEngine;
@@ -11,6 +13,8 @@ import io.delta.kernel.types.*;
 import io.delta.kernel.utils.CloseableIterable;
 import io.unitycatalog.client.model.AwsCredentials;
 import io.unitycatalog.client.model.ColumnInfo;
+import io.unitycatalog.server.service.credential.aws.S3StorageConfig;
+import io.unitycatalog.server.utils.ServerProperties;
 import java.net.URI;
 import java.util.*;
 import java.util.stream.IntStream;
@@ -73,17 +77,31 @@ public class DeltaKernelUtils {
   public static Configuration getHDFSConfiguration(
       URI tablePathUri, AwsCredentials awsTempCredentials) {
     Configuration conf = new Configuration();
+
     if (tablePathUri.getScheme() != null
         && tablePathUri.getScheme().equals("s3")
         && awsTempCredentials == null) {
       throw new IllegalArgumentException("AWS temporary credentials are missing");
     }
     if (tablePathUri.getScheme().equals("s3")) {
+      Map<String, S3StorageConfig> s3Configurations =
+          ServerProperties.getInstance().getS3Configurations();
+
+      String bucketPath = tablePathUri.getScheme() + "://" + tablePathUri.getAuthority();
+
+      S3StorageConfig s3StorageConfig = s3Configurations.get(bucketPath);
+      if (s3StorageConfig == null) {
+        throw new IllegalArgumentException("S3 bucket configuration not found.");
+      }
       conf.set("fs.s3a.access.key", awsTempCredentials.getAccessKeyId());
       conf.set("fs.s3a.secret.key", awsTempCredentials.getSecretAccessKey());
       conf.set("fs.s3a.session.token", awsTempCredentials.getSessionToken());
       conf.set("fs.s3a.impl", "org.apache.hadoop.fs.s3a.S3AFileSystem");
       conf.set("fs.s3a.path.style.access", "true");
+      if (s3StorageConfig.getServiceEndpoint() != null
+          && !s3StorageConfig.getServiceEndpoint().isEmpty()) {
+        conf.set("fs.s3a.endpoint", s3StorageConfig.getServiceEndpoint());
+      }
     } else if (tablePathUri.getScheme().equals("file")) {
       conf.set("fs.file.impl", "org.apache.hadoop.fs.LocalFileSystem");
     } else {
@@ -107,6 +125,11 @@ public class DeltaKernelUtils {
       at.addRule();
       at.addRow(schema);
       at.addRule();
+
+      // Automatically set the width based on the content
+      at.getRenderer().setCWC(new CWC_LongestLine());
+      at.getContext().setGridTheme(TA_GridThemes.BORDERS);
+
       // might need to prune it later
       ScanBuilder scanBuilder = snapshot.getScanBuilder(engine).withReadSchema(engine, readSchema);
       List<Row> rowData =
@@ -121,6 +144,7 @@ public class DeltaKernelUtils {
       }
       return at.render();
     } catch (Exception e) {
+      System.out.println("Delta Read Error " + e.getMessage());
       throw new IllegalArgumentException("Failed to read delta table", e);
     }
   }
