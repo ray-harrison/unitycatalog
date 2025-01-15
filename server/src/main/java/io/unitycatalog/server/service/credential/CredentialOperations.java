@@ -49,6 +49,7 @@ public class CredentialOperations {
     FileOperations.assertValidLocation(location);
 
     String storageScheme = context.getStorageScheme();
+
     TemporaryCredentials temporaryCredentials = new TemporaryCredentials();
 
     switch (storageScheme) {
