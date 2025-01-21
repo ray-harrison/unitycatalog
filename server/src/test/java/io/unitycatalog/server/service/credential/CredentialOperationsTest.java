@@ -79,7 +79,14 @@ public class CredentialOperationsTest {
               () ->
                   credentialsOperations.vendCredential(
                       "s3://storageBase/abc", Set.of(CredentialContext.Privilege.SELECT)))
-          .isInstanceOfAny(StsException.class, SdkClientException.class);
+          .isInstanceOfAny(StsException.class, SdkClientException.class)
+          .satisfies(
+              exception -> {
+                if (exception instanceof SdkClientException) {
+                  assertThat(exception.getCause())
+                      .isInstanceOf(java.net.UnknownHostException.class);
+                }
+              });
     }
   }
 

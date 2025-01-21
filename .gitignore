@@ -46,3 +46,4 @@ __pycache__
 dist/
 *.egg-info/
 Pipfile
+/etc/conf/server.properties.save
