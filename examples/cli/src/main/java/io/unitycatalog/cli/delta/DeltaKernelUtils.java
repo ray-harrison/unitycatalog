@@ -84,8 +84,7 @@ public class DeltaKernelUtils {
       throw new IllegalArgumentException("AWS temporary credentials are missing");
     }
     if (tablePathUri.getScheme().equals("s3")) {
-      Map<String, S3StorageConfig> s3Configurations =
-          ServerProperties.getInstance().getS3Configurations();
+      Map<String, S3StorageConfig> s3Configurations = new ServerProperties().getS3Configurations();
 
       String bucketPath = tablePathUri.getScheme() + "://" + tablePathUri.getAuthority();
 

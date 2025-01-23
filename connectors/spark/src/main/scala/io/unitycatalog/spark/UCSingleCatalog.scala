@@ -170,7 +170,7 @@ object UCSingleCatalog {
       temporaryCredentials: TemporaryCredentials): Map[String, String] = {
     if (scheme == "s3") {
       val awsCredentials = temporaryCredentials.getAwsTempCredentials
-      val s3StorageConfig = ServerProperties.getInstance.getS3Configurations.get(TableCatalog.PROP_LOCATION)
+      val s3StorageConfig = new ServerProperties().getS3Configurations.get(TableCatalog.PROP_LOCATION)
 
       Map(
         // TODO: how to support s3:// properly?

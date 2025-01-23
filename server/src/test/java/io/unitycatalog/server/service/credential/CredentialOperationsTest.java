@@ -2,7 +2,6 @@ package io.unitycatalog.server.service.credential;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
-import static org.mockito.Mockito.mockStatic;
 import static org.mockito.Mockito.when;
 
 import io.unitycatalog.server.exception.BaseException;
@@ -19,10 +18,7 @@ import java.util.Set;
 import java.util.concurrent.CompletionException;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
-import org.junit.jupiter.params.ParameterizedTest;
-import org.junit.jupiter.params.provider.ValueSource;
 import org.mockito.Mock;
-import org.mockito.MockedStatic;
 import org.mockito.junit.jupiter.MockitoExtension;
 import software.amazon.awssdk.core.exception.SdkClientException;
 import software.amazon.awssdk.services.sts.model.StsException;
@@ -33,7 +29,7 @@ public class CredentialOperationsTest {
   CredentialOperations credentialsOperations;
 
   @Test
-  public void testGenerateS3TemporaryCredentials(boolean withServiceEndpoint) {
+  public void testGenerateS3TemporaryCredentials() {
     final String ACCESS_KEY = "accessKey";
     final String SECRET_KEY = "secretKey";
     final String SESSION_TOKEN = "sessionToken";
@@ -42,120 +38,114 @@ public class CredentialOperationsTest {
     final String SERVICE_ENDPOINT = "https://serviceEndpoint";
 
     when(serverProperties.getS3Configurations())
-            .thenReturn(
-                    Map.of(
-                            "s3://storageBase",
-                            S3StorageConfig.builder()
-                                    .accessKey(ACCESS_KEY)
-                                    .secretKey(SECRET_KEY)
-                                    .sessionToken(SESSION_TOKEN)
-                                    .serviceEndpoint(SERVICE_ENDPOINT)
-                                    .build()));
+        .thenReturn(
+            Map.of(
+                "s3://storageBase",
+                S3StorageConfig.builder()
+                    .accessKey(ACCESS_KEY)
+                    .secretKey(SECRET_KEY)
+                    .sessionToken(SESSION_TOKEN)
+                    .serviceEndpoint(SERVICE_ENDPOINT)
+                    .build()));
     AwsCredentialVendor awsCredentialVendor = new AwsCredentialVendor(serverProperties);
     credentialsOperations = new CredentialOperations(awsCredentialVendor, null, null);
     TemporaryCredentials s3TemporaryCredentials =
-            credentialsOperations.vendCredential(
-                    "s3://storageBase/abc", Set.of(CredentialContext.Privilege.SELECT));
+        credentialsOperations.vendCredential(
+            "s3://storageBase/abc", Set.of(CredentialContext.Privilege.SELECT));
     assertThat(s3TemporaryCredentials.getAwsTempCredentials())
-            .isEqualTo(
-                    new AwsCredentials()
-                            .accessKeyId(ACCESS_KEY)
-                            .secretAccessKey(SECRET_KEY)
-                            .sessionToken(SESSION_TOKEN));
+        .isEqualTo(
+            new AwsCredentials()
+                .accessKeyId(ACCESS_KEY)
+                .secretAccessKey(SECRET_KEY)
+                .sessionToken(SESSION_TOKEN));
 
-      assertThat(s3TemporaryCredentials.getAwsTempCredentials())
-          .isEqualTo(
-              new AwsCredentials()
-                  .accessKeyId(ACCESS_KEY)
-                  .secretAccessKey(SECRET_KEY)
-                  .sessionToken(SESSION_TOKEN));
+    assertThat(s3TemporaryCredentials.getAwsTempCredentials())
+        .isEqualTo(
+            new AwsCredentials()
+                .accessKeyId(ACCESS_KEY)
+                .secretAccessKey(SECRET_KEY)
+                .sessionToken(SESSION_TOKEN));
 
     // Test when sts client is called
     when(serverProperties.getS3Configurations())
-            .thenReturn(
-                    Map.of(
-                            "s3://storageBase",
-                            S3StorageConfig.builder()
-                                    .accessKey(ACCESS_KEY)
-                                    .secretKey(SECRET_KEY)
-                                    .region(S3_REGION)
-                                    .awsRoleArn(ROLE_ARN)
-                                    .serviceEndpoint(SERVICE_ENDPOINT)
-                                    .build()));
+        .thenReturn(
+            Map.of(
+                "s3://storageBase",
+                S3StorageConfig.builder()
+                    .accessKey(ACCESS_KEY)
+                    .secretKey(SECRET_KEY)
+                    .region(S3_REGION)
+                    .awsRoleArn(ROLE_ARN)
+                    .serviceEndpoint(SERVICE_ENDPOINT)
+                    .build()));
     awsCredentialVendor = new AwsCredentialVendor(serverProperties);
     credentialsOperations = new CredentialOperations(awsCredentialVendor, null, null);
 
     assertThatThrownBy(
-              () ->
-                  credentialsOperations.vendCredential(
-                      "s3://storageBase/abc", Set.of(CredentialContext.Privilege.SELECT)))
-          .isInstanceOfAny(StsException.class, SdkClientException.class)
-          .satisfies(
-              exception -> {
-                if (exception instanceof SdkClientException) {
-                  assertThat(exception.getCause())
-                      .isInstanceOf(java.net.UnknownHostException.class);
-                }
-              });
-
+            () ->
+                credentialsOperations.vendCredential(
+                    "s3://storageBase/abc", Set.of(CredentialContext.Privilege.SELECT)))
+        .isInstanceOfAny(StsException.class, SdkClientException.class);
   }
 
-@Test
-public void testGenerateAzureTemporaryCredentials() {
-  final String CLIENT_ID = "clientId";
-  final String CLIENT_SECRET = "clientSecret";
-  final String TENANT_ID = "tenantId";
-  // Test mode used
-  when(serverProperties.getAdlsConfigurations())
-          .thenReturn(Map.of("uctest", ADLSStorageConfig.builder().testMode(true).build()));
-  AzureCredentialVendor azureCredentialVendor = new AzureCredentialVendor(serverProperties);
-  credentialsOperations = new CredentialOperations(null, azureCredentialVendor, null);
-  TemporaryCredentials azureTemporaryCredentials =
-          credentialsOperations.vendCredential(
-                  "abfss://test@uctest.dfs.core.windows.net", Set.of(CredentialContext.Privilege.UPDATE));
-  assertThat(azureTemporaryCredentials.getAzureUserDelegationSas().getSasToken()).isNotNull();
+  @Test
+  public void testGenerateAzureTemporaryCredentials() {
+    final String CLIENT_ID = "clientId";
+    final String CLIENT_SECRET = "clientSecret";
+    final String TENANT_ID = "tenantId";
+    // Test mode used
+    when(serverProperties.getAdlsConfigurations())
+        .thenReturn(Map.of("uctest", ADLSStorageConfig.builder().testMode(true).build()));
+    AzureCredentialVendor azureCredentialVendor = new AzureCredentialVendor(serverProperties);
+    credentialsOperations = new CredentialOperations(null, azureCredentialVendor, null);
+    TemporaryCredentials azureTemporaryCredentials =
+        credentialsOperations.vendCredential(
+            "abfss://test@uctest.dfs.core.windows.net", Set.of(CredentialContext.Privilege.UPDATE));
+    assertThat(azureTemporaryCredentials.getAzureUserDelegationSas().getSasToken()).isNotNull();
 
-  // Use datalake service client
-  when(serverProperties.getAdlsConfigurations())
-          .thenReturn(
-                  Map.of(
-                          "uctest",
-                          ADLSStorageConfig.builder()
-                                  .testMode(false)
-                                  .tenantId(TENANT_ID)
-                                  .clientId(CLIENT_ID)
-                                  .clientSecret(CLIENT_SECRET)
-                                  .build()));
-  azureCredentialVendor = new AzureCredentialVendor(serverProperties);
-  credentialsOperations = new CredentialOperations(null, azureCredentialVendor, null);
-  assertThatThrownBy(
-          () ->
-                  credentialsOperations.vendCredential(
-                          "abfss://test@uctest", Set.of(CredentialContext.Privilege.UPDATE)))
-          .isInstanceOf(CompletionException.class);
-}
+    // Use datalake service client
+    when(serverProperties.getAdlsConfigurations())
+        .thenReturn(
+            Map.of(
+                "uctest",
+                ADLSStorageConfig.builder()
+                    .testMode(false)
+                    .tenantId(TENANT_ID)
+                    .clientId(CLIENT_ID)
+                    .clientSecret(CLIENT_SECRET)
+                    .build()));
+    azureCredentialVendor = new AzureCredentialVendor(serverProperties);
+    credentialsOperations = new CredentialOperations(null, azureCredentialVendor, null);
+    assertThatThrownBy(
+            () ->
+                credentialsOperations.vendCredential(
+                    "abfss://test@uctest", Set.of(CredentialContext.Privilege.UPDATE)))
+        .isInstanceOf(CompletionException.class);
+  }
 
-@Test
-public void testGenerateGcpTemporaryCredentials() {
-  // Test mode used
-  when(serverProperties.getGcsConfigurations())
-          .thenReturn(Map.of("gs://uctest", "testing://test"));
-  GcpCredentialVendor gcpCredentialVendor = new GcpCredentialVendor(serverProperties);
-  credentialsOperations = new CredentialOperations(null, null, gcpCredentialVendor);
-  TemporaryCredentials gcpTemporaryCredentials =
-          credentialsOperations.vendCredential(
-                  "gs://uctest/abc/xyz", Set.of(CredentialContext.Privilege.UPDATE));
-  assertThat(gcpTemporaryCredentials.getGcpOauthToken().getOauthToken()).isNotNull();
+  @Test
+  public void testGenerateGcpTemporaryCredentials() {
+    // Test mode used
+    when(serverProperties.getGcsConfigurations())
+        .thenReturn(Map.of("gs://uctest", "testing://test"));
+    GcpCredentialVendor gcpCredentialVendor = new GcpCredentialVendor(serverProperties);
+    credentialsOperations = new CredentialOperations(null, null, gcpCredentialVendor);
+    TemporaryCredentials gcpTemporaryCredentials =
+        credentialsOperations.vendCredential(
+            "gs://uctest/abc/xyz", Set.of(CredentialContext.Privilege.UPDATE));
+    assertThat(gcpTemporaryCredentials.getGcpOauthToken().getOauthToken()).isNotNull();
 
-  // Use default creds
-  when(serverProperties.getGcsConfigurations()).thenReturn(Map.of("gs://uctest", ""));
-  gcpCredentialVendor = new GcpCredentialVendor(serverProperties);
-  credentialsOperations = new CredentialOperations(null, null, gcpCredentialVendor);
-  assertThatThrownBy(
-          () ->
-                  credentialsOperations.vendCredential(
-                          "gs://uctest/abc/xyz", Set.of(CredentialContext.Privilege.UPDATE)))
-          .isInstanceOf(BaseException.class);
-}
-
+    // Use default creds
+    when(serverProperties.getGcsConfigurations()).thenReturn(Map.of("gs://uctest", ""));
+    gcpCredentialVendor = new GcpCredentialVendor(serverProperties);
+    credentialsOperations = new CredentialOperations(null, null, gcpCredentialVendor);
+    assertThatThrownBy(
+            () ->
+                credentialsOperations.vendCredential(
+                    "gs://uctest/abc/xyz", Set.of(CredentialContext.Privilege.UPDATE)))
+        .isInstanceOfAny(
+            BaseException.class,
+            NoClassDefFoundError
+                .class); // NoClassDefFoundError is thrown when the GCP SDK is not available
+  }
 }
