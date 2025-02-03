@@ -155,10 +155,10 @@ def test_tool_calling_with_trace_as_retriever(use_serverless, monkeypatch):
 
             trace = mlflow.get_last_active_trace()
             assert trace is not None
+            assert trace.data.spans[0].name == func_name
             assert trace.info.execution_time_ms is not None
             assert trace.data.request == tool_call.function.arguments
             assert trace.data.response == result.value.replace("'", '"')
-            assert trace.data.spans[0].name == func_name
 
 
 @requires_databricks
@@ -459,9 +459,13 @@ def test_function_definition_generation(use_serverless, monkeypatch):
             ]
         )
 
-        function_definition = UCFunctionToolkit.uc_function_to_openai_function_definition(
-            function_info=function_info
-        )
+        with mock.patch(
+            "unitycatalog.ai.core.databricks.DatabricksFunctionClient.get_function",
+            return_value=function_info,
+        ):
+            function_definition = UCFunctionToolkit.uc_function_to_openai_function_definition(
+                function_name=function_info.full_name
+            )
         assert function_definition == {
             "type": "function",
             "function": {
