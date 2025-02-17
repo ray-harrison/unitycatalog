@@ -189,6 +189,11 @@ public class VolumeCli {
         FileStatus[] fileStatuses = fs.listStatus(path);
         for (FileStatus status : fileStatuses) {
           URI entityPath = status.getPath().toUri();
+          //          System.out.println(
+          //              "Entity Path: "
+          //                  + relativeURIWithS3AScheme.relativize(entityPath)
+          //                  + " "
+          //                  + (status.isDirectory() ? "[directory]" : "[file]"));
           fileList.add(
               relativeURIWithS3AScheme.relativize(entityPath)
                   + " "
@@ -213,6 +218,8 @@ public class VolumeCli {
         fs.close();
       } catch (IOException e) {
         throw new CliException("Failed to close file system", e);
+      } catch (NoSuchMethodError e) {
+        // System.out.println("NoSuchMethodError");
       }
     }
   }

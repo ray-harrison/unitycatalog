@@ -1,6 +1,6 @@
 package io.unitycatalog.cli.delta;
 
-import static io.unitycatalog.cli.utils.CliUtils.EMPTY;
+import static io.unitycatalog.cli.utils.CliUtils.*;
 
 import de.vandermeer.asciitable.AsciiTable;
 import de.vandermeer.asciitable.CWC_LongestLine;

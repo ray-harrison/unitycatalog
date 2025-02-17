@@ -30,6 +30,8 @@ public class ServerProperties {
     this.properties = properties;
   }
 
+  public static final String SERVER_PROPERTIES_FILE = "etc/conf/server.properties";
+
   // Load properties from a configuration file
   private static Properties readPropertiesFromFile(String propertiesFile) {
     Path path = Paths.get(propertiesFile);
@@ -47,15 +49,21 @@ public class ServerProperties {
 
   public Map<String, S3StorageConfig> getS3Configurations() {
     Map<String, S3StorageConfig> s3BucketConfigMap = new HashMap<>();
+    Properties localProperties;
+    if (properties.isEmpty()) {
+      localProperties = readPropertiesFromFile(SERVER_PROPERTIES_FILE);
+    } else {
+      localProperties = properties;
+    }
     int i = 0;
     while (true) {
-      String bucketPath = properties.getProperty("s3.bucketPath." + i);
-      String region = properties.getProperty("s3.region." + i);
-      String awsRoleArn = properties.getProperty("s3.awsRoleArn." + i);
-      String accessKey = properties.getProperty("s3.accessKey." + i);
-      String secretKey = properties.getProperty("s3.secretKey." + i);
-      String sessionToken = properties.getProperty("s3.sessionToken." + i);
-      String serviceEndpoint = properties.getProperty("s3.serviceEndpoint." + i);
+      String bucketPath = localProperties.getProperty("s3.bucketPath." + i);
+      String region = localProperties.getProperty("s3.region." + i);
+      String awsRoleArn = localProperties.getProperty("s3.awsRoleArn." + i);
+      String accessKey = localProperties.getProperty("s3.accessKey." + i);
+      String secretKey = localProperties.getProperty("s3.secretKey." + i);
+      String sessionToken = localProperties.getProperty("s3.sessionToken." + i);
+      String serviceEndpoint = localProperties.getProperty("s3.serviceEndpoint." + i);
       if ((bucketPath == null || region == null || awsRoleArn == null)
           && (accessKey == null || secretKey == null || sessionToken == null)) {
         break;
