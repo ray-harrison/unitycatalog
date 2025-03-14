@@ -1946,6 +1946,10 @@ components:
           description: The token that users must pass to AWS API to use the temporary
             credentials.
           type: string
+        service_endpoint:
+          description: The endpoint of the service that the temporary credentials are
+            valid for.
+          type: string
       type: object
     AzureUserDelegationSAS:
       properties:
