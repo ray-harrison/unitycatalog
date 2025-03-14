@@ -173,8 +173,12 @@ object UCSingleCatalog {
         "fs.s3a.session.token" -> awsCredentials.getSessionToken,
         "fs.s3a.path.style.access" -> "true",
         "fs.s3.impl.disable.cache" -> "true",
-        "fs.s3a.impl.disable.cache" -> "true"
-      )
+        "fs.s3a.impl.disable.cache" -> "true",
+      )++ (if (awsCredentials.getServiceEndpoint != null && awsCredentials.getServiceEndpoint.nonEmpty) {
+        Map("fs.s3a.endpoint" -> awsCredentials.getServiceEndpoint)
+      } else {
+        Map.empty[String, String]
+      })
     } else if (scheme == "gs") {
       val gcsCredentials = temporaryCredentials.getGcpOauthToken
       Map(

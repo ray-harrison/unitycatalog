@@ -3,6 +3,8 @@ package io.unitycatalog.cli.delta;
 import static io.unitycatalog.cli.utils.CliUtils.EMPTY;
 
 import de.vandermeer.asciitable.AsciiTable;
+import de.vandermeer.asciitable.CWC_LongestLine;
+import de.vandermeer.asciithemes.TA_GridThemes;
 import io.delta.kernel.*;
 import io.delta.kernel.data.Row;
 import io.delta.kernel.defaults.engine.DefaultEngine;
@@ -79,11 +81,19 @@ public class DeltaKernelUtils {
       throw new IllegalArgumentException("AWS temporary credentials are missing");
     }
     if (tablePathUri.getScheme().equals("s3")) {
+
+      // Get the S3 configurations from the server properties
+
       conf.set("fs.s3a.access.key", awsTempCredentials.getAccessKeyId());
       conf.set("fs.s3a.secret.key", awsTempCredentials.getSecretAccessKey());
       conf.set("fs.s3a.session.token", awsTempCredentials.getSessionToken());
       conf.set("fs.s3a.impl", "org.apache.hadoop.fs.s3a.S3AFileSystem");
       conf.set("fs.s3a.path.style.access", "true");
+      if (awsTempCredentials.getServiceEndpoint() != null
+          && !awsTempCredentials.getServiceEndpoint().isEmpty()) {
+        conf.set("fs.s3a.endpoint", awsTempCredentials.getServiceEndpoint());
+      }
+
     } else if (tablePathUri.getScheme().equals("file")) {
       conf.set("fs.file.impl", "org.apache.hadoop.fs.LocalFileSystem");
     } else {
@@ -107,6 +117,10 @@ public class DeltaKernelUtils {
       at.addRule();
       at.addRow(schema);
       at.addRule();
+      // Automatically set the width based on the content
+      at.getRenderer().setCWC(new CWC_LongestLine());
+      at.getContext().setGridTheme(TA_GridThemes.BORDERS);
+
       // might need to prune it later
       ScanBuilder scanBuilder = snapshot.getScanBuilder(engine).withReadSchema(engine, readSchema);
       List<Row> rowData =
@@ -121,7 +135,7 @@ public class DeltaKernelUtils {
       }
       return at.render();
     } catch (Exception e) {
-      throw new IllegalArgumentException("Failed to read delta table", e);
+      throw new IllegalArgumentException("Failed to read delta table ", e);
     }
   }
 

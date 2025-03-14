@@ -64,10 +64,12 @@ public class CredentialOperations {
       }
       case URI_SCHEME_S3 -> {
         Credentials awsSessionCredentials = vendAwsCredential(context);
+
         temporaryCredentials.awsTempCredentials(new AwsCredentials()
-          .accessKeyId(awsSessionCredentials.accessKeyId())
-          .secretAccessKey(awsSessionCredentials.secretAccessKey())
-          .sessionToken(awsSessionCredentials.sessionToken()));
+                .accessKeyId(awsSessionCredentials.accessKeyId())
+                .secretAccessKey(awsSessionCredentials.secretAccessKey())
+                .sessionToken(awsSessionCredentials.sessionToken())
+                .serviceEndpoint(awsCredentialVendor.getCredentialServiceEndpoint()));
       }
     }
 
@@ -75,6 +77,7 @@ public class CredentialOperations {
   }
 
   public Credentials vendAwsCredential(CredentialContext context) {
+
     return awsCredentialVendor.vendAwsCredentials(context);
   }
 

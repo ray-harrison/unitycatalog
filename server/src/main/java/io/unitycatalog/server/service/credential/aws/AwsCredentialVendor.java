@@ -4,9 +4,12 @@ import io.unitycatalog.server.exception.BaseException;
 import io.unitycatalog.server.exception.ErrorCode;
 import io.unitycatalog.server.service.credential.CredentialContext;
 import io.unitycatalog.server.utils.ServerProperties;
+import java.net.URI;
 import java.time.Duration;
 import java.util.Map;
 import java.util.UUID;
+import lombok.Getter;
+import lombok.Setter;
 import software.amazon.awssdk.auth.credentials.AwsBasicCredentials;
 import software.amazon.awssdk.auth.credentials.AwsCredentialsProvider;
 import software.amazon.awssdk.auth.credentials.DefaultCredentialsProvider;
@@ -19,16 +22,22 @@ public class AwsCredentialVendor {
 
   private final Map<String, S3StorageConfig> s3Configurations;
 
+  @Getter @Setter private String credentialServiceEndpoint;
+
   public AwsCredentialVendor(ServerProperties serverProperties) {
     this.s3Configurations = serverProperties.getS3Configurations();
   }
 
   public Credentials vendAwsCredentials(CredentialContext context) {
     S3StorageConfig s3StorageConfig = s3Configurations.get(context.getStorageBase());
+
     if (s3StorageConfig == null) {
       throw new BaseException(ErrorCode.FAILED_PRECONDITION, "S3 bucket configuration not found.");
     }
-
+    if (s3StorageConfig.getServiceEndpoint() != null
+        && !s3StorageConfig.getServiceEndpoint().isEmpty()) {
+      setCredentialServiceEndpoint(s3StorageConfig.getServiceEndpoint());
+    }
     if (s3StorageConfig.getSessionToken() != null && !s3StorageConfig.getSessionToken().isEmpty()) {
       // if a session token was supplied, then we will just return static session credentials
       return Credentials.builder()
@@ -72,6 +81,13 @@ public class AwsCredentialVendor {
     return StsClient.builder()
         .credentialsProvider(credentialsProvider)
         .region(Region.of(s3StorageConfig.getRegion()))
+        .applyMutation(
+            builder -> {
+              if (s3StorageConfig.getServiceEndpoint() != null
+                  && !s3StorageConfig.getServiceEndpoint().isEmpty()) {
+                builder.endpointOverride(URI.create(s3StorageConfig.getServiceEndpoint()));
+              }
+            })
         .build();
   }
 }
