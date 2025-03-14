@@ -72,7 +72,13 @@ the following parameters need to be set:
 You can configure multiple buckets by incrementing the index *i* in the above parameters. The starting index should
 be 0.
 
-All the above parameters are required for each index. For vending temporary credentials, the server matches the bucket
+All the above parameters are required for each index. If using a third-party S3-compliant resource, such as MinIO,
+you will need to add the following attribute:
+
+- `s3.serviceEndpoint.i`: The third-party service endpoint, which serves as the STS endpoint to generate and use temp 
+credentials.
+
+For vending temporary credentials, the server matches the bucket
 path in the table/volume storage_location with the bucket path in the configuration and returns the corresponding
 access key, secret key, and session token.
 
