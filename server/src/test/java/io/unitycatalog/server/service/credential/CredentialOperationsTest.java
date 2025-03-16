@@ -20,6 +20,7 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import software.amazon.awssdk.core.exception.SdkClientException;
 import software.amazon.awssdk.services.sts.model.StsException;
 
 @ExtendWith(MockitoExtension.class)
@@ -34,6 +35,7 @@ public class CredentialOperationsTest {
     final String SESSION_TOKEN = "sessionToken";
     final String S3_REGION = "us-west-2";
     final String ROLE_ARN = "roleArn";
+    final String SERVICE_ENDPOINT = "https://serviceEndpoint";
     // Test session key is available
     when(serverProperties.getS3Configurations())
         .thenReturn(
@@ -43,6 +45,7 @@ public class CredentialOperationsTest {
                     .accessKey(ACCESS_KEY)
                     .secretKey(SECRET_KEY)
                     .sessionToken(SESSION_TOKEN)
+                    .serviceEndpoint(SERVICE_ENDPOINT)
                     .build()));
     AwsCredentialVendor awsCredentialVendor = new AwsCredentialVendor(serverProperties);
     credentialsOperations = new CredentialOperations(awsCredentialVendor, null, null);
@@ -54,7 +57,8 @@ public class CredentialOperationsTest {
             new AwsCredentials()
                 .accessKeyId(ACCESS_KEY)
                 .secretAccessKey(SECRET_KEY)
-                .sessionToken(SESSION_TOKEN));
+                .sessionToken(SESSION_TOKEN)
+                .serviceEndpoint(SERVICE_ENDPOINT));
 
     // Test when sts client is called
     when(serverProperties.getS3Configurations())
@@ -66,6 +70,7 @@ public class CredentialOperationsTest {
                     .secretKey(SECRET_KEY)
                     .region(S3_REGION)
                     .awsRoleArn(ROLE_ARN)
+                    .serviceEndpoint(SERVICE_ENDPOINT)
                     .build()));
     awsCredentialVendor = new AwsCredentialVendor(serverProperties);
     credentialsOperations = new CredentialOperations(awsCredentialVendor, null, null);
@@ -73,7 +78,7 @@ public class CredentialOperationsTest {
             () ->
                 credentialsOperations.vendCredential(
                     "s3://storageBase/abc", Set.of(CredentialContext.Privilege.SELECT)))
-        .isInstanceOf(StsException.class);
+        .isInstanceOfAny(StsException.class, SdkClientException.class);
   }
 
   @Test
