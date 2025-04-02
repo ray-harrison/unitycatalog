@@ -858,6 +858,9 @@ class UnitycatalogFunctionClient(BaseFunctionClient):
 
     @override
     def _validate_param_type(self, value: Any, param_info: FunctionParameterInfo) -> None:
+        if value is None and param_info.parameter_default == "NULL":
+            return
+
         value_python_type = column_type_to_python_type(
             param_info.type_name, mapping=SQL_TYPE_TO_PYTHON_TYPE_MAPPING_UC_OSS
         )
@@ -908,7 +911,7 @@ class UnitycatalogFunctionClient(BaseFunctionClient):
             )
         if not result:
             result = NO_OUTPUT_MESSAGE
-        return FunctionExecutionResult(format="SCALAR", value=str(result))
+        return FunctionExecutionResult(format="SCALAR", value=result)
 
     async def execute_function_async(
         self,
@@ -949,7 +952,7 @@ class UnitycatalogFunctionClient(BaseFunctionClient):
             )
         if not result:
             result = NO_OUTPUT_MESSAGE
-        return FunctionExecutionResult(format="SCALAR", value=str(result))
+        return FunctionExecutionResult(format="SCALAR", value=result)
 
     async def delete_function_async(
         self,

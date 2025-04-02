@@ -63,7 +63,8 @@ DATABRICKS_CONNECT_VERSION_NOT_SUPPORTED_ERROR_MESSAGE = (
 SESSION_RETRY_BASE_DELAY = 1
 SESSION_RETRY_MAX_DELAY = 4
 SESSION_EXPIRED_MESSAGE = "session_id is no longer usable"
-SESSION_CHANGED_MESSAGE = "The existing Spark server driver has restarted."
+SESSION_CHANGED_MESSAGE = "The existing Spark server driver"
+SESSION_HANDLE_INVALID_MESSAGE = "INVALID_HANDLE"
 WAREHOUSE_DEFINED_NOT_SUPPORTED_MESSAGE = (
     "The argument `warehouse_id` was specified, which is no longer supported with "
     "the `DatabricksFunctionClient`. Please omit this argument as it is no longer used. "
@@ -190,10 +191,15 @@ def retry_on_session_expiration(func):
                     and result.error
                     and any(
                         msg in result.error
-                        for msg in (SESSION_EXPIRED_MESSAGE, SESSION_CHANGED_MESSAGE)
+                        for msg in (
+                            SESSION_EXPIRED_MESSAGE,
+                            SESSION_CHANGED_MESSAGE,
+                            SESSION_HANDLE_INVALID_MESSAGE,
+                        )
                     )
                 ):
                     raise SessionExpirationException(result.error)
+                _logger.info("Successfully re-acquired connection to a serverless instance.")
                 return result
             except SessionExpirationException as e:
                 if not self._is_default_client:
@@ -651,6 +657,8 @@ class DatabricksFunctionClient(BaseFunctionClient):
     @override
     def _validate_param_type(self, value: Any, param_info: "FunctionParameterInfo") -> None:
         value_python_type = column_type_to_python_type(param_info.type_name.value)
+        if value is None and param_info.parameter_default == "NULL":
+            return
         if value_python_type is Variant:
             Variant.validate(value)
             return
