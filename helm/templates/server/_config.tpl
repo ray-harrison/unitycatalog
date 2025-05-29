@@ -22,6 +22,7 @@ s3.region.{{ $index }}={{ $config.region }}
 s3.awsRoleArn.{{ $index }}={{ $config.awsRoleArn }}
 s3.accessKey.{{ $index }}=${S3_ACCESS_KEY_{{ $index }}}
 s3.secretKey.{{ $index }}=${S3_SECRET_KEY_{{ $index }}}
+s3.serviceEndpoint.{{ $index }}={{$config.serviceEndpoint}}
 {{- end }}
 
 {{- range $index, $config := .Values.storage.credentials.adls }}
