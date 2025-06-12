@@ -1,6 +1,6 @@
 # unitycatalog
 
-![Version: 0.1.0](https://img.shields.io/badge/Version-0.1.0-informational?style=flat-square) ![Type: application](https://img.shields.io/badge/Type-application-informational?style=flat-square) ![AppVersion: v0.2.1](https://img.shields.io/badge/AppVersion-v0.2.1-informational?style=flat-square)
+![Version: 0.0.1-pre.1](https://img.shields.io/badge/Version-0.0.1--pre.1-informational?style=flat-square) ![Type: application](https://img.shields.io/badge/Type-application-informational?style=flat-square) ![AppVersion: main](https://img.shields.io/badge/AppVersion-main-informational?style=flat-square)
 
 This chart deploys [Unity Catalog](https://github.com/unitycatalog/unitycatalog) on a Kubernetes cluster
 using the [Helm](https://github.com/helm/helm) package manager.
@@ -12,7 +12,6 @@ using the [Helm](https://github.com/helm/helm) package manager.
 ## Features
 - Deploys Unity Catalog server and UI
 - Supports OAuth authentication
-- Supports Unity Catalog versions: 0.2.1
 - Supports file H2DB and PostgreSQL as a database
 - Customizable configuration for server and UI using Helm values
 
@@ -234,7 +233,7 @@ false
 		</tr>
 		<tr>
 			<td>ingress.host</td>
-			<td>array</td>
+			<td>string</td>
 			<td><pre lang="">
 not set
 </pre>
@@ -642,6 +641,30 @@ If set to true, the startup probe will be enabled.
 </td>
 		</tr>
 		<tr>
+			<td>server.deployment.extraContainers</td>
+			<td>array</td>
+			<td><pre lang="">
+not set
+</pre>
+</td>
+			<td>List of additional containers to be added to the server pod
+
+[Kubernetes docs](https://kubernetes.io/docs/concepts/workloads/pods/#pod)
+</td>
+		</tr>
+		<tr>
+			<td>server.deployment.extraInitContainers</td>
+			<td>array</td>
+			<td><pre lang="">
+not set
+</pre>
+</td>
+			<td>List of additional init containers to be added to the server pod
+
+[Kubernetes docs](https://kubernetes.io/docs/concepts/workloads/pods/#pod)
+</td>
+		</tr>
+		<tr>
 			<td>server.deployment.extraPodAnnotations</td>
 			<td>object</td>
 			<td><pre lang="">
@@ -949,8 +972,7 @@ derived from the chart parameters and metadata
 			<td>Name of the keypair secret for JWT signing
 
 The secret must contain the following keys:
-- `public_key.der`: Public key in DER format
-- `private_key.der`: Private key in DER format
+- `private_key.der` or `private_key.pem`: Private key in DER or PEM format
 - `key_id.txt`: Key ID
 
 [Kubernetes docs](https://github.com/unitycatalog/unitycatalog/blob/main/server/src/main/java/io/unitycatalog/server/security/SecurityConfiguration.java)
@@ -1151,6 +1173,30 @@ If set to true, the startup probe will be enabled.
 </td>
 		</tr>
 		<tr>
+			<td>ui.deployment.extraContainers</td>
+			<td>array</td>
+			<td><pre lang="">
+not set
+</pre>
+</td>
+			<td>List of additional containers to be added to the UI pods
+
+[Kubernetes docs](https://kubernetes.io/docs/concepts/workloads/pods/#pod)
+</td>
+		</tr>
+		<tr>
+			<td>ui.deployment.extraInitContainers</td>
+			<td>array</td>
+			<td><pre lang="">
+not set
+</pre>
+</td>
+			<td>List of additional init containers to be added to the UI pods
+
+[Kubernetes docs](https://kubernetes.io/docs/concepts/workloads/pods/#pod)
+</td>
+		</tr>
+		<tr>
 			<td>ui.deployment.extraPodAnnotations</td>
 			<td>object</td>
 			<td><pre lang="">
@@ -1263,6 +1309,18 @@ not set
 </pre>
 </td>
 			<td>Tag for the UI init container</td>
+		</tr>
+		<tr>
+			<td>ui.deployment.initContainer.securityContext</td>
+			<td>object</td>
+			<td><pre lang="">
+not set
+</pre>
+</td>
+			<td>Security context for the init container
+
+[Kubernetes docs](https://kubernetes.io/docs/concepts/policy/security-context/)
+</td>
 		</tr>
 		<tr>
 			<td>ui.deployment.livenessProbe</td>

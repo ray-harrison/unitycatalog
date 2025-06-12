@@ -104,7 +104,7 @@ public class DeltaKernelUtils {
     try {
       Table table = Table.forPath(engine, substituteSchemeForS3(tablePath));
       Snapshot snapshot = table.getLatestSnapshot(engine);
-      StructType readSchema = snapshot.getSchema(engine);
+      StructType readSchema = snapshot.getSchema();
       Object[] schema =
           readSchema.fields().stream()
               .map(x -> x.getName() + "(" + x.getDataType().toString() + ")")
@@ -117,7 +117,7 @@ public class DeltaKernelUtils {
       at.getRenderer().setCWC(new CWC_LongestLine());
       at.getContext().setGridTheme(TA_GridThemes.BORDERS);
       // might need to prune it later
-      ScanBuilder scanBuilder = snapshot.getScanBuilder(engine).withReadSchema(engine, readSchema);
+      ScanBuilder scanBuilder = snapshot.getScanBuilder().withReadSchema(readSchema);
       List<Row> rowData =
           DeltaKernelReadUtils.readData(engine, readSchema, scanBuilder.build(), maxResults);
       for (Row row : rowData) {

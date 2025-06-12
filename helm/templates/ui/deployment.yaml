@@ -28,6 +28,9 @@ spec:
       {{- end }}
       initContainers:
         - name: wait-for-server
+          {{- with .Values.ui.deployment.initContainer.securityContext }}
+          securityContext: {{- toYaml . | nindent 12 }}
+          {{- end }}
           image: "{{ .Values.ui.deployment.initContainer.image.repository }}:{{ .Values.ui.deployment.initContainer.image.tag }}"
           imagePullPolicy: {{ .Values.ui.deployment.initContainer.image.pullPolicy | quote }}
           command:
@@ -107,14 +110,6 @@ spec:
               mv temp.json package.json
               yarn start
           env:
-          {{- if .Values.ui.deployment.host }}
-            - name: HOST
-              value: "{{ .Values.ui.deployment.host }}"
-                    {{- end }}
-                    {{- if .Values.ui.deployment.disableHostCheck }}
-            - name: DANGEROUSLY_DISABLE_HOST_CHECK
-              value: "{{ .Values.ui.deployment.disableHostCheck }}"
-                    {{- end }}
           {{- if .Values.auth.enabled }}
             - name: REACT_APP_GOOGLE_AUTH_ENABLED
               value: "{{ eq .Values.auth.provider "google" }}"
