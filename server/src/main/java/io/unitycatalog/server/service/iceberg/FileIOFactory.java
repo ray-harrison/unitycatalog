@@ -6,6 +6,7 @@ import io.unitycatalog.server.service.credential.CloudCredentialVendor;
 import io.unitycatalog.server.utils.ServerProperties;
 import io.unitycatalog.server.service.credential.CredentialContext;
 import io.unitycatalog.server.service.credential.aws.S3StorageConfig;
+import io.unitycatalog.server.service.credential.aws.AwsCredentialsWithEndpoint;
 import io.unitycatalog.server.service.credential.azure.ADLSLocationUtils;
 import io.unitycatalog.server.service.credential.azure.AzureCredential;
 import lombok.SneakyThrows;
@@ -21,7 +22,7 @@ import software.amazon.awssdk.auth.credentials.DefaultCredentialsProvider;
 import software.amazon.awssdk.auth.credentials.StaticCredentialsProvider;
 import software.amazon.awssdk.regions.Region;
 import software.amazon.awssdk.services.s3.S3Client;
-import software.amazon.awssdk.services.sts.model.Credentials;
+import software.amazon.awssdk.services.s3.S3ClientBuilder;
 
 import java.net.URI;
 import java.util.Map;
@@ -87,26 +88,35 @@ public class FileIOFactory {
     S3StorageConfig s3StorageConfig = s3Configurations.get(context.getStorageBase());
 
     S3FileIO s3FileIO =
-        new S3FileIO(() -> getS3Client(getAwsCredentialsProvider(context), s3StorageConfig.getRegion()));
+        new S3FileIO(() -> getS3Client(getAwsCredentialsProvider(context), s3StorageConfig));
 
     s3FileIO.initialize(Map.of());
 
     return s3FileIO;
   }
 
-  protected S3Client getS3Client(AwsCredentialsProvider awsCredentialsProvider, String region) {
-    return S3Client.builder()
-        .region(Region.of(region))
+  protected S3Client getS3Client(AwsCredentialsProvider awsCredentialsProvider, S3StorageConfig s3StorageConfig) {
+    S3ClientBuilder s3ClientBuilder = S3Client.builder()
+        .region(Region.of(s3StorageConfig.getRegion()))
         .credentialsProvider(awsCredentialsProvider)
-        .forcePathStyle(false)
-        .build();
+        .forcePathStyle(false);
+    
+    if (s3StorageConfig.getServiceEndpoint() != null && !s3StorageConfig.getServiceEndpoint().isEmpty()) {
+      s3ClientBuilder.endpointOverride(URI.create(s3StorageConfig.getServiceEndpoint()))
+          .forcePathStyle(true);
+    }
+    
+    return s3ClientBuilder.build();
   }
 
   private AwsCredentialsProvider getAwsCredentialsProvider(CredentialContext context) {
     try {
-      Credentials awsSessionCredentials = cloudCredentialVendor.vendAwsCredential(context);
+      AwsCredentialsWithEndpoint awsCredsWithEndpoint = cloudCredentialVendor.vendAwsCredential(context);
       return StaticCredentialsProvider.create(
-        AwsSessionCredentials.create(awsSessionCredentials.accessKeyId(), awsSessionCredentials.secretAccessKey(), awsSessionCredentials.sessionToken()));
+        AwsSessionCredentials.create(
+            awsCredsWithEndpoint.getCredentials().accessKeyId(),
+            awsCredsWithEndpoint.getCredentials().secretAccessKey(),
+            awsCredsWithEndpoint.getCredentials().sessionToken()));
     } catch (BaseException e) {
       return DefaultCredentialsProvider.create();
     }

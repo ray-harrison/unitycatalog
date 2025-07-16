@@ -5,6 +5,7 @@ import io.unitycatalog.server.service.credential.CloudCredentialVendor;
 import io.unitycatalog.server.utils.ServerProperties;
 import io.unitycatalog.server.service.credential.CredentialContext;
 import io.unitycatalog.server.service.credential.aws.S3StorageConfig;
+import io.unitycatalog.server.service.credential.aws.AwsCredentialsWithEndpoint;
 import io.unitycatalog.server.service.credential.azure.ADLSLocationUtils;
 import io.unitycatalog.server.service.credential.azure.AzureCredential;
 import org.apache.iceberg.TableMetadata;
@@ -67,7 +68,8 @@ public class TableConfigService {
 
   private Map<String, String> getS3Config(CredentialContext context) {
     S3StorageConfig s3StorageConfig = s3Configurations.get(context.getStorageBase());
-    Credentials awsCredential = cloudCredentialVendor.vendAwsCredential(context);
+    AwsCredentialsWithEndpoint awsCredsWithEndpoint = cloudCredentialVendor.vendAwsCredential(context);
+    Credentials awsCredential = awsCredsWithEndpoint.getCredentials();
 
     return Map.of(S3FileIOProperties.ACCESS_KEY_ID, awsCredential.accessKeyId(),
       S3FileIOProperties.SECRET_ACCESS_KEY, awsCredential.secretAccessKey(),

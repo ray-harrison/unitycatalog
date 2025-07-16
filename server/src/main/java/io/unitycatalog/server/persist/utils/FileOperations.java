@@ -139,14 +139,23 @@ public class FileOperations {
     String secretKey = serverProperties.getProperty("aws.s3.secretKey");
     String sessionToken = serverProperties.getProperty("aws.s3.sessionToken");
     String region = serverProperties.getProperty("aws.region");
+    String serviceEndpoint = serverProperties.getProperty("aws.s3.serviceEndpoint");
 
     BasicSessionCredentials sessionCredentials =
         new BasicSessionCredentials(accessKey, secretKey, sessionToken);
-    AmazonS3 s3Client =
+    AmazonS3ClientBuilder s3ClientBuilder =
         AmazonS3ClientBuilder.standard()
             .withCredentials(new AWSStaticCredentialsProvider(sessionCredentials))
-            .withRegion(region)
-            .build();
+            .withRegion(region);
+
+    if (serviceEndpoint != null && !serviceEndpoint.isEmpty()) {
+      s3ClientBuilder
+          .withEndpointConfiguration(
+              new AmazonS3ClientBuilder.EndpointConfiguration(serviceEndpoint, region))
+          .withPathStyleAccessEnabled(true);
+    }
+
+    AmazonS3 s3Client = s3ClientBuilder.build();
 
     if (createOrDelete) {
 

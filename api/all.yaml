@@ -2180,6 +2180,9 @@ components:
           description: The token that users must pass to AWS API to use the temporary
             credentials.
           type: string
+        endpoint:
+          description: Optional custom S3 endpoint URL for S3-compatible services.
+          type: string
       type: object
     AzureUserDelegationSAS:
       properties:

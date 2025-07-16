@@ -6,10 +6,10 @@ import io.unitycatalog.server.exception.ErrorCode;
 import io.unitycatalog.server.model.*;
 import io.unitycatalog.server.persist.utils.FileOperations;
 import io.unitycatalog.server.service.credential.aws.AwsCredentialVendor;
+import io.unitycatalog.server.service.credential.aws.AwsCredentialsWithEndpoint;
 import io.unitycatalog.server.service.credential.azure.AzureCredential;
 import io.unitycatalog.server.service.credential.azure.AzureCredentialVendor;
 import io.unitycatalog.server.service.credential.gcp.GcpCredentialVendor;
-import software.amazon.awssdk.services.sts.model.Credentials;
 
 import java.net.URI;
 import java.util.Set;
@@ -63,18 +63,22 @@ public class CloudCredentialVendor {
           .expirationTime(gcpToken.getExpirationTime().getTime());
       }
       case URI_SCHEME_S3 -> {
-        Credentials awsSessionCredentials = vendAwsCredential(context);
-        temporaryCredentials.awsTempCredentials(new AwsCredentials()
-          .accessKeyId(awsSessionCredentials.accessKeyId())
-          .secretAccessKey(awsSessionCredentials.secretAccessKey())
-          .sessionToken(awsSessionCredentials.sessionToken()));
+        AwsCredentialsWithEndpoint awsCredsWithEndpoint = vendAwsCredential(context);
+        AwsCredentials awsCredentials = new AwsCredentials()
+          .accessKeyId(awsCredsWithEndpoint.getCredentials().accessKeyId())
+          .secretAccessKey(awsCredsWithEndpoint.getCredentials().secretAccessKey())
+          .sessionToken(awsCredsWithEndpoint.getCredentials().sessionToken());
+        if (awsCredsWithEndpoint.getServiceEndpoint() != null) {
+          awsCredentials.endpoint(awsCredsWithEndpoint.getServiceEndpoint());
+        }
+        temporaryCredentials.awsTempCredentials(awsCredentials);
       }
     }
 
     return temporaryCredentials;
   }
 
-  public Credentials vendAwsCredential(CredentialContext context) {
+  public AwsCredentialsWithEndpoint vendAwsCredential(CredentialContext context) {
     return awsCredentialVendor.vendAwsCredentials(context);
   }
 

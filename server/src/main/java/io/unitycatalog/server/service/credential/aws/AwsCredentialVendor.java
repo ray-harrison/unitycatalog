@@ -23,37 +23,45 @@ public class AwsCredentialVendor {
     this.s3Configurations = serverProperties.getS3Configurations();
   }
 
-  public Credentials vendAwsCredentials(CredentialContext context) {
+  public AwsCredentialsWithEndpoint vendAwsCredentials(CredentialContext context) {
     S3StorageConfig s3StorageConfig = s3Configurations.get(context.getStorageBase());
     if (s3StorageConfig == null) {
       throw new BaseException(ErrorCode.FAILED_PRECONDITION, "S3 bucket configuration not found.");
     }
 
+    Credentials credentials;
     if (s3StorageConfig.getSessionToken() != null && !s3StorageConfig.getSessionToken().isEmpty()) {
       // if a session token was supplied, then we will just return static session credentials
-      return Credentials.builder()
-          .accessKeyId(s3StorageConfig.getAccessKey())
-          .secretAccessKey(s3StorageConfig.getSecretKey())
-          .sessionToken(s3StorageConfig.getSessionToken())
-          .build();
+      credentials =
+          Credentials.builder()
+              .accessKeyId(s3StorageConfig.getAccessKey())
+              .secretAccessKey(s3StorageConfig.getSecretKey())
+              .sessionToken(s3StorageConfig.getSessionToken())
+              .build();
+    } else {
+      // TODO: cache sts client
+      StsClient stsClient = getStsClientForStorageConfig(s3StorageConfig);
+
+      // TODO: Update this with relevant user/role type info once available
+      String roleSessionName = "uc-%s".formatted(UUID.randomUUID());
+      String awsPolicy =
+          AwsPolicyGenerator.generatePolicy(context.getPrivileges(), context.getLocations());
+
+      credentials =
+          stsClient
+              .assumeRole(
+                  r ->
+                      r.roleArn(s3StorageConfig.getAwsRoleArn())
+                          .policy(awsPolicy)
+                          .roleSessionName(roleSessionName)
+                          .durationSeconds((int) Duration.ofHours(1).toSeconds()))
+              .credentials();
     }
 
-    // TODO: cache sts client
-    StsClient stsClient = getStsClientForStorageConfig(s3StorageConfig);
-
-    // TODO: Update this with relevant user/role type info once available
-    String roleSessionName = "uc-%s".formatted(UUID.randomUUID());
-    String awsPolicy =
-        AwsPolicyGenerator.generatePolicy(context.getPrivileges(), context.getLocations());
-
-    return stsClient
-        .assumeRole(
-            r ->
-                r.roleArn(s3StorageConfig.getAwsRoleArn())
-                    .policy(awsPolicy)
-                    .roleSessionName(roleSessionName)
-                    .durationSeconds((int) Duration.ofHours(1).toSeconds()))
-        .credentials();
+    return AwsCredentialsWithEndpoint.builder()
+        .credentials(credentials)
+        .serviceEndpoint(s3StorageConfig.getServiceEndpoint())
+        .build();
   }
 
   private StsClient getStsClientForStorageConfig(S3StorageConfig s3StorageConfig) {

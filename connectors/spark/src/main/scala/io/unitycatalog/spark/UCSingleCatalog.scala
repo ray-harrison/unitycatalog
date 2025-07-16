@@ -178,7 +178,7 @@ object UCSingleCatalog {
       temporaryCredentials: TemporaryCredentials): Map[String, String] = {
     if (scheme == "s3") {
       val awsCredentials = temporaryCredentials.getAwsTempCredentials
-      Map(
+      val baseProps = Map(
         // TODO: how to support s3:// properly?
         "fs.s3a.access.key" -> awsCredentials.getAccessKeyId,
         "fs.s3a.secret.key" -> awsCredentials.getSecretAccessKey,
@@ -187,6 +187,12 @@ object UCSingleCatalog {
         "fs.s3.impl.disable.cache" -> "true",
         "fs.s3a.impl.disable.cache" -> "true"
       )
+      // Add endpoint configuration if provided
+      if (awsCredentials.getEndpoint != null && !awsCredentials.getEndpoint.isEmpty) {
+        baseProps ++ Map("fs.s3a.endpoint" -> awsCredentials.getEndpoint)
+      } else {
+        baseProps
+      }
     } else if (scheme == "gs") {
       val gcsCredentials = temporaryCredentials.getGcpOauthToken
       Map(
