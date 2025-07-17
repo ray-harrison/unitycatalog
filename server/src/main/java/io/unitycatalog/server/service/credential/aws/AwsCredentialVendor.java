@@ -30,8 +30,26 @@ public class AwsCredentialVendor {
     }
 
     Credentials credentials;
-    if (s3StorageConfig.getSessionToken() != null && !s3StorageConfig.getSessionToken().isEmpty()) {
-      // if a session token was supplied, then we will just return static session credentials
+    // For S3-compatible services (MinIO, Ceph, etc) with custom endpoints, always use static
+    // credentials
+    boolean hasCustomEndpoint =
+        s3StorageConfig.getServiceEndpoint() != null
+            && !s3StorageConfig.getServiceEndpoint().isEmpty();
+    boolean hasAccessKey =
+        s3StorageConfig.getAccessKey() != null && !s3StorageConfig.getAccessKey().isEmpty();
+
+    if (hasCustomEndpoint && hasAccessKey) {
+      // For S3-compatible services, use static credentials directly
+      credentials =
+          Credentials.builder()
+              .accessKeyId(s3StorageConfig.getAccessKey())
+              .secretAccessKey(s3StorageConfig.getSecretKey())
+              .sessionToken(s3StorageConfig.getSessionToken()) // This can be null for MinIO
+              .build();
+    } else if (s3StorageConfig.getSessionToken() != null
+        && !s3StorageConfig.getSessionToken().isEmpty()) {
+      // if a session token was supplied for AWS, then we will just return static session
+      // credentials
       credentials =
           Credentials.builder()
               .accessKeyId(s3StorageConfig.getAccessKey())

@@ -3,11 +3,12 @@ package io.unitycatalog.server.service;
 import com.linecorp.armeria.common.HttpResponse;
 import com.linecorp.armeria.server.annotation.ExceptionHandler;
 import com.linecorp.armeria.server.annotation.Post;
+import io.unitycatalog.server.auth.UnityCatalogAuthorizer;
 import io.unitycatalog.server.auth.annotation.AuthorizeExpression;
-import io.unitycatalog.server.auth.annotation.AuthorizeKey;
 import io.unitycatalog.server.exception.GlobalExceptionHandler;
 import io.unitycatalog.server.model.GenerateTemporaryPathCredential;
 import io.unitycatalog.server.model.PathOperation;
+import io.unitycatalog.server.persist.SchemaRepository;
 import io.unitycatalog.server.service.credential.CredentialContext;
 import io.unitycatalog.server.service.credential.CloudCredentialVendor;
 import org.slf4j.Logger;
@@ -16,7 +17,6 @@ import org.slf4j.LoggerFactory;
 import java.util.Collections;
 import java.util.Set;
 
-import static io.unitycatalog.server.model.SecurableType.METASTORE;
 import static io.unitycatalog.server.service.credential.CredentialContext.Privilege.SELECT;
 import static io.unitycatalog.server.service.credential.CredentialContext.Privilege.UPDATE;
 
@@ -25,23 +25,22 @@ public class TemporaryPathCredentialsService {
     private static final Logger LOGGER = LoggerFactory.getLogger(TemporaryPathCredentialsService.class);
     
     private final CloudCredentialVendor cloudCredentialVendor;
+    private final UnityCatalogAuthorizer authorizer;
+    private final SchemaRepository schemaRepository;
 
-    public TemporaryPathCredentialsService(CloudCredentialVendor cloudCredentialVendor) {
+    public TemporaryPathCredentialsService(
+            CloudCredentialVendor cloudCredentialVendor,
+            UnityCatalogAuthorizer authorizer,
+            SchemaRepository schemaRepository) {
         this.cloudCredentialVendor = cloudCredentialVendor;
+        this.authorizer = authorizer;
+        this.schemaRepository = schemaRepository;
     }
 
     @Post("")
-    // Authorization approach:
-    // 1. METASTORE OWNER always has access (admin users)
-    // 2. For PATH_CREATE_TABLE operations, we defer authorization to allow table creation
-    //    The actual permission check happens in TableService.createTable()
-    //    This is necessary because Spark doesn't pass catalog/schema info when requesting path credentials
-    // 3. For other operations (PATH_READ, PATH_READ_WRITE), require METASTORE OWNER
-    @AuthorizeExpression("""
-        #authorize(#principal, #metastore, OWNER) ||
-        (#generateTemporaryPathCredential.operation.name() == 'PATH_CREATE_TABLE')
-    """)
-    @AuthorizeKey(METASTORE)
+    // Authorization: Allow any authenticated user to generate path credentials
+    // The actual table/volume/model creation will check for appropriate permissions
+    @AuthorizeExpression("#permit")
     public HttpResponse generateTemporaryPathCredential(
         GenerateTemporaryPathCredential generateTemporaryPathCredential) {
         
