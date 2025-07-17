@@ -10,6 +10,8 @@ import io.unitycatalog.server.model.GenerateTemporaryPathCredential;
 import io.unitycatalog.server.model.PathOperation;
 import io.unitycatalog.server.service.credential.CredentialContext;
 import io.unitycatalog.server.service.credential.CloudCredentialVendor;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.util.Collections;
 import java.util.Set;
@@ -20,6 +22,8 @@ import static io.unitycatalog.server.service.credential.CredentialContext.Privil
 
 @ExceptionHandler(GlobalExceptionHandler.class)
 public class TemporaryPathCredentialsService {
+    private static final Logger LOGGER = LoggerFactory.getLogger(TemporaryPathCredentialsService.class);
+    
     private final CloudCredentialVendor cloudCredentialVendor;
 
     public TemporaryPathCredentialsService(CloudCredentialVendor cloudCredentialVendor) {
@@ -27,10 +31,24 @@ public class TemporaryPathCredentialsService {
     }
 
     @Post("")
-    @AuthorizeExpression("#authorize(#principal, #metastore, OWNER)")
+    // Authorization approach:
+    // 1. METASTORE OWNER always has access (admin users)
+    // 2. For PATH_CREATE_TABLE operations, we defer authorization to allow table creation
+    //    The actual permission check happens in TableService.createTable()
+    //    This is necessary because Spark doesn't pass catalog/schema info when requesting path credentials
+    // 3. For other operations (PATH_READ, PATH_READ_WRITE), require METASTORE OWNER
+    @AuthorizeExpression("""
+        #authorize(#principal, #metastore, OWNER) ||
+        (#generateTemporaryPathCredential.operation.name() == 'PATH_CREATE_TABLE')
+    """)
     @AuthorizeKey(METASTORE)
     public HttpResponse generateTemporaryPathCredential(
         GenerateTemporaryPathCredential generateTemporaryPathCredential) {
+        
+        LOGGER.debug("Generating temporary credentials for path: {} with operation: {}", 
+            generateTemporaryPathCredential.getUrl(), 
+            generateTemporaryPathCredential.getOperation());
+            
         return HttpResponse.ofJson(
                 cloudCredentialVendor.vendCredential(
                         generateTemporaryPathCredential.getUrl(),
