@@ -11,6 +11,8 @@ This directory contains tests to verify that Unity Catalog works correctly with 
 
 ## Quick Test
 
+### Basic Integration Test
+
 Run the automated test script:
 
 ```bash
@@ -22,6 +24,20 @@ This script will:
 2. Configure Unity Catalog server to use MinIO
 3. Run Spark commands to create tables and read/write data
 4. Verify the integration works correctly
+
+### Permissions Test
+
+Test non-admin user workflows:
+
+```bash
+./test-permissions.sh
+```
+
+This script demonstrates:
+1. Non-admin users creating external tables
+2. Table owners writing to their tables
+3. Users with SELECT+MODIFY permissions writing data
+4. Read-only users accessing tables
 
 ## Manual Testing
 
@@ -119,10 +135,38 @@ For Spark, add:
 2. **Access Denied**: Check MinIO credentials in server.properties
 3. **Path Style Access**: The implementation automatically enables path-style access for custom endpoints
 
-## Integration Test
+## Permission Requirements
 
-The Java integration test (`MinioS3CompatibilityTest.java`) provides automated testing using TestContainers. Run it with:
+### For Non-Admin Users
+
+To create external tables:
+- `USE_CATALOG` on the target catalog
+- `USE_SCHEMA` + `CREATE_TABLE` on the target schema
+
+To write to tables:
+- `USE_CATALOG` on the catalog
+- `USE_SCHEMA` on the schema
+- Either:
+  - Be the table `OWNER` (automatic for table creator), OR
+  - Have `SELECT` + `MODIFY` permissions on the table
+
+To read from tables:
+- `USE_CATALOG` on the catalog
+- `USE_SCHEMA` on the schema
+- `SELECT` permission on the table
+
+## Integration Tests
+
+### Basic MinIO Test
+The Java integration test (`MinioS3CompatibilityTest.java`) provides automated testing using TestContainers:
 
 ```bash
 mvn test -Dtest=MinioS3CompatibilityTest
+```
+
+### Non-Admin User Test
+Test the full permission model with MinIO:
+
+```bash
+mvn test -Dtest=MinioNonAdminUserTest
 ```
