@@ -1,6 +1,20 @@
 # Example values override for Azure AD Bootstrap
 # Save as: azure-bootstrap-values.yaml
 
+# Enable authentication with Azure AD provider
+auth:
+  enabled: true
+  provider: azure
+  clientSecretName: azure-oauth-secret
+  azureAuthority: https://login.microsoftonline.com/your-tenant-id
+  authorizationUrl: https://login.microsoftonline.com/your-tenant-id/oauth2/v2.0/authorize
+  tokenUrl: https://login.microsoftonline.com/your-tenant-id/oauth2/v2.0/token
+
+# Enable UI with Azure AD integration
+ui:
+  enabled: true
+  # Azure-specific UI variables automatically configured via REACT_APP_MS_* environment variables
+
 # Enable Azure AD bootstrap functionality
 bootstrap:
   enabled: true

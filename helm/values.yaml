@@ -93,8 +93,12 @@ auth:
   # -- (string) OAuth provider
   # @raw
   #
-  # Supported values: `google`, `other`
+  # Supported values: `google`, `azure`, `okta`, `keycloak`, `other`
   #
+  # azure: Microsoft Azure AD authentication
+  # google: Google OAuth authentication  
+  # okta: Okta authentication
+  # keycloak: Keycloak authentication
   # other: Use this option if you want to use a custom OAuth provider. UI does not have any built-in support for this option.
   #
   provider: google
@@ -124,6 +128,22 @@ auth:
   # - `clientSecret`: OAuth client secret
   #
   clientSecretName:
+
+  # -- (string) Azure authority URL for Azure AD authentication
+  # @default -- not set
+  # @raw
+  #
+  # Example: `https://login.microsoftonline.com/your-tenant-id`
+  #
+  azureAuthority:
+
+  # -- (string) Okta domain for Okta authentication  
+  # @default -- not set
+  oktaDomain:
+
+  # -- (string) Keycloak realm ID for Keycloak authentication
+  # @default -- not set
+  keycloakRealmId:
 
   # -- (int) OAuth redirect port
   # @default -- not set
