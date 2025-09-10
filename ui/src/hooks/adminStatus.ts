@@ -3,7 +3,7 @@ import { useAuth } from '../context/auth-context';
 import { CLIENT } from '../context/client';
 import { route, isError } from '../utils/openapi';
 import type { paths as ControlApi } from '../types/api/control.gen';
-import type { paths as CatalogApi, components as CatalogComponent } from '../types/api/catalog.gen';
+import type { paths as CatalogApi } from '../types/api/catalog.gen';
 import type { Route } from '../utils/openapi';
 import { UC_AUTH_API_PREFIX, UC_API_PREFIX } from '../utils/constants';
 

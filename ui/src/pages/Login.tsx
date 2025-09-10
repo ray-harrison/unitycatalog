@@ -1,4 +1,4 @@
-import { Flex, Layout, Typography, Button } from 'antd';
+import { Flex, Layout, Typography } from 'antd';
 import React from 'react';
 import GoogleAuthButton from '../components/login/GoogleAuthButton';
 import MSAuthButton from '../components/login/MSAuthButton';
@@ -6,11 +6,9 @@ import OktaAuthButton from '../components/login/OktaAuthButton';
 import { useAuth } from '../context/auth-context';
 import KeycloakAuthButton from '../components/login/KeycloakAuthButton';
 import { useNavigate, useLocation } from 'react-router-dom';
-import { useMsalAuth } from '../context/msal-auth-context';
 
 export default function LoginPage() {
     const {loginWithToken} = useAuth();
-    const { login } = useMsalAuth();
     const navigate = useNavigate();
     const location = useLocation();
     const from = location.state?.from || '/';
@@ -27,15 +25,6 @@ export default function LoginPage() {
   const handleMSSignIn = async (idToken: string) => {
         await loginWithToken(idToken).then(() => navigate(from, { replace: true }));
     };
-
-  const handleAzureLogin = async () => {
-    try {
-      await login();
-      navigate(from, { replace: true });
-    } catch (error) {
-      console.error('Azure login failed:', error);
-    }
-  };
 
   return (
       <Layout
@@ -81,19 +70,7 @@ export default function LoginPage() {
               {googleEnabled && (
                 <GoogleAuthButton onGoogleSignIn={handleGoogleSignIn} />
               )}
-              {msEnabled && (
-                <>
-                  <MSAuthButton onMSSignIn={handleMSSignIn} />
-                  <Button 
-                    type="primary" 
-                    size="large" 
-                    onClick={handleAzureLogin}
-                    style={{ width: '100%' }}
-                  >
-                    Sign in with Azure AD (MSAL)
-                  </Button>
-                </>
-              )}
+              {msEnabled && <MSAuthButton onMSSignIn={handleMSSignIn} />}
               {oktaEnabled && (
                 <OktaAuthButton
                   onSuccess={(tokens: any) => console.log('tokens', tokens)}

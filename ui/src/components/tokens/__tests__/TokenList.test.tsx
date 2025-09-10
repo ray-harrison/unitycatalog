@@ -29,27 +29,27 @@ const TestWrapper: React.FC<{ children: React.ReactNode }> = ({ children }) => {
 };
 
 describe('TokenList', () => {
+  const now = new Date().getTime();
   const mockTokens: TokenInfo[] = [
     {
       tokenId: 'tok_active',
       comment: 'Active development token',
-      createdAt: '2025-01-15T10:00:00Z',
-      expiresAt: '2025-01-16T10:00:00Z',
-      lastUsedAt: '2025-01-15T12:00:00Z',
+      creationTime: now - 86400000, // 1 day ago
+      expiryTime: now + 86400000, // 1 day from now
       status: 'ACTIVE',
     },
     {
       tokenId: 'tok_expired',
       comment: 'Expired token',
-      createdAt: '2025-01-14T10:00:00Z',
-      expiresAt: '2025-01-14T11:00:00Z',
+      creationTime: now - 172800000, // 2 days ago
+      expiryTime: now - 86400000, // 1 day ago
       status: 'EXPIRED',
     },
     {
       tokenId: 'tok_revoked',
       comment: 'Revoked token',
-      createdAt: '2025-01-13T10:00:00Z',
-      expiresAt: '2025-01-20T10:00:00Z',
+      creationTime: now - 259200000, // 3 days ago
+      expiryTime: now + 86400000, // 1 day from now
       status: 'REVOKED',
     },
   ];
@@ -127,16 +127,45 @@ describe('TokenList', () => {
     expect(screen.getByRole('table')).toBeInTheDocument();
   });
 
-  test('allows revoking only active tokens', () => {
+  test('allows revoke action for tokens with appropriate confirmations', async () => {
     render(
       <TestWrapper>
         <TokenList />
       </TestWrapper>
     );
 
-    const revokeButtons = screen.getAllByText('Revoke');
+    const deleteButtons = screen.getAllByRole('button');
     
-    // Should have revoke buttons for all tokens (some disabled)
-    expect(revokeButtons.length).toBeGreaterThan(0);
+    // Only revoked tokens should be disabled
+    expect(deleteButtons[0]).not.toBeDisabled(); // Active
+    expect(deleteButtons[1]).not.toBeDisabled(); // Expired (can still be revoked)
+    expect(deleteButtons[2]).toBeDisabled();     // Revoked (already revoked)
+
+    // Click on active token button
+    fireEvent.click(deleteButtons[0]);
+    
+    // Should show revoke confirmation for active token
+    await waitFor(() => {
+      expect(screen.getByText('Revoke Token')).toBeInTheDocument();
+      expect(screen.getByText(/become invalid immediately/)).toBeInTheDocument();
+    });
+
+    // Click cancel to close the popconfirm
+    const cancelButton = screen.getByText('No');
+    fireEvent.click(cancelButton);
+
+    // Wait for popconfirm to close
+    await waitFor(() => {
+      expect(screen.queryByText('Revoke Token')).not.toBeInTheDocument();
+    });
+
+    // Click on expired token button  
+    fireEvent.click(deleteButtons[1]);
+    
+    // Should show revoke confirmation for expired token with different message
+    await waitFor(() => {
+      expect(screen.getByText('Revoke Token')).toBeInTheDocument();
+      expect(screen.getByText(/remove it from your list/)).toBeInTheDocument();
+    });
   });
 });

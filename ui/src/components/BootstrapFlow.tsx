@@ -1,20 +1,23 @@
 import React, { useState } from 'react';
-import { Card, Button, Alert, Typography, Steps, Spin } from 'antd';
-import { CheckCircleOutlined, LoadingOutlined, CloudOutlined } from '@ant-design/icons';
+import { Card, Button, Alert, Typography, Steps, Spin, Input } from 'antd';
+import { LoadingOutlined, CloudOutlined, CopyOutlined } from '@ant-design/icons';
+import { useAuth } from '../context/auth-context';
 
-const { Title, Paragraph } = Typography;
+const { Title, Paragraph, Text } = Typography;
 const { Step } = Steps;
+const { TextArea } = Input;
 
 interface BootstrapFlowProps {
   onComplete?: () => void;
 }
 
-type BootstrapStep = 'start' | 'redirecting' | 'waiting' | 'error';
+type BootstrapStep = 'start' | 'redirecting' | 'waiting' | 'token-input' | 'exchanging' | 'completed' | 'error';
 
 export const BootstrapFlow: React.FC<BootstrapFlowProps> = ({ onComplete }) => {
   const [currentStep, setCurrentStep] = useState<BootstrapStep>('start');
   const [error, setError] = useState<string>('');
-  const [authUrl, setAuthUrl] = useState<string>('');
+  const [azureToken, setAzureToken] = useState<string>('');
+  const { loginWithToken } = useAuth();
 
   const handleStartBootstrap = async () => {
     try {
@@ -24,7 +27,7 @@ export const BootstrapFlow: React.FC<BootstrapFlowProps> = ({ onComplete }) => {
       const response = await fetch('/api/1.0/unity-control/auth/azure-login/start', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: '{}'
+        body: JSON.stringify({})
       });
       
       if (!response.ok) {
@@ -32,10 +35,19 @@ export const BootstrapFlow: React.FC<BootstrapFlowProps> = ({ onComplete }) => {
       }
       
       const data = await response.json();
-      setAuthUrl(data.authorization_url);
       
-      // Redirect to Azure authentication
-      window.location.href = data.authorization_url;
+      // Open Azure authentication in a new window/tab
+      const authWindow = window.open(data.authorization_url, 'azure-auth', 'width=600,height=700');
+      
+      setCurrentStep('waiting');
+      
+      // Monitor the auth window
+      const checkClosed = setInterval(() => {
+        if (authWindow?.closed) {
+          clearInterval(checkClosed);
+          setCurrentStep('token-input');
+        }
+      }, 1000);
       
     } catch (err: any) {
       setError(err.message || 'Failed to start bootstrap process');
@@ -43,11 +55,60 @@ export const BootstrapFlow: React.FC<BootstrapFlowProps> = ({ onComplete }) => {
     }
   };
 
+    const handleTokenSubmit = async () => {
+    try {
+      setCurrentStep('exchanging');
+      setError('');
+
+      // Step 1: Exchange Azure token for Unity Catalog token using bootstrap endpoint
+      const response = await fetch('/api/1.0/unity-control/auth/bootstrap/token-exchange', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${azureToken}`,
+        },
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.message || `Token exchange failed: ${response.status}`);
+      }
+
+      const tokenData = await response.json();
+      console.log('Bootstrap token exchange successful:', tokenData);
+
+      // Step 2: Login with the Unity Catalog token
+      await loginWithToken(tokenData.access_token);
+      
+      setCurrentStep('completed');
+    } catch (err) {
+      console.error('Bootstrap token exchange error:', err);
+      setError(err instanceof Error ? err.message : 'Bootstrap token exchange failed');
+      setCurrentStep('error');
+    }
+  };
+
+  const extractTokenFromJson = () => {
+    try {
+      const parsed = JSON.parse(azureToken);
+      if (parsed.access_token) {
+        setAzureToken(parsed.access_token);
+      } else {
+        setError('No access_token found in JSON. Please copy just the token value.');
+      }
+    } catch (e) {
+      setError('Invalid JSON. Please copy just the token value, not the entire JSON.');
+    }
+  };
+
   const getStepStatus = (step: number) => {
     if (currentStep === 'error') return 'error';
     if (currentStep === 'start' && step === 0) return 'process';
     if (currentStep === 'redirecting' && step <= 1) return 'process';
-    if (currentStep === 'waiting' && step <= 2) return 'process';
+    if (currentStep === 'waiting' && step <= 1) return 'process';
+    if (currentStep === 'token-input' && step <= 2) return 'process';
+    if (currentStep === 'exchanging' && step <= 3) return 'process';
+    if (currentStep === 'completed' && step <= 4) return 'finish';
     return 'wait';
   };
 
@@ -76,10 +137,21 @@ export const BootstrapFlow: React.FC<BootstrapFlowProps> = ({ onComplete }) => {
             status={getStepStatus(1)}
           />
           <Step
-            title="Grant Admin Privileges"
-            description="Receive OWNER privileges in Unity Catalog"
+            title="Copy Token"
+            description="Copy the Azure token from the popup"
             status={getStepStatus(2)}
-            icon={currentStep === 'waiting' && <LoadingOutlined />}
+            icon={currentStep === 'token-input' && <LoadingOutlined />}
+          />
+          <Step
+            title="Exchange Token"
+            description="Exchange Azure token for Unity Catalog session"
+            status={getStepStatus(3)}
+            icon={currentStep === 'exchanging' && <LoadingOutlined />}
+          />
+          <Step
+            title="Bootstrap Complete"
+            description="Receive OWNER privileges in Unity Catalog"
+            status={getStepStatus(4)}
           />
         </Steps>
 
@@ -116,8 +188,75 @@ export const BootstrapFlow: React.FC<BootstrapFlowProps> = ({ onComplete }) => {
           <div style={{ textAlign: 'center' }}>
             <Spin size="large" />
             <div style={{ marginTop: 16 }}>
-              <Paragraph>Processing authentication and granting admin privileges...</Paragraph>
+              <Paragraph>Complete authentication in the popup window...</Paragraph>
+              <Paragraph type="secondary">After authentication, close the popup to continue.</Paragraph>
             </div>
+          </div>
+        )}
+
+        {currentStep === 'token-input' && (
+          <div>
+            <Alert
+              type="info"
+              message="Copy Azure Token"
+              description="Copy the access_token value from the JSON response in the popup window and paste it below."
+              style={{ marginBottom: 16 }}
+            />
+            <div style={{ marginBottom: 16 }}>
+              <Text strong>Azure Token:</Text>
+              <TextArea
+                rows={4}
+                value={azureToken}
+                onChange={(e) => setAzureToken(e.target.value)}
+                placeholder="Paste the access_token value here (or the entire JSON response)"
+              />
+            </div>
+            <div style={{ marginBottom: 16 }}>
+              <Button 
+                type="default" 
+                icon={<CopyOutlined />}
+                onClick={extractTokenFromJson}
+                style={{ marginRight: 8 }}
+              >
+                Extract from JSON
+              </Button>
+              <Button 
+                type="primary" 
+                onClick={handleTokenSubmit}
+                disabled={!azureToken.trim()}
+              >
+                Exchange Token
+              </Button>
+            </div>
+          </div>
+        )}
+
+        {currentStep === 'exchanging' && (
+          <div style={{ textAlign: 'center' }}>
+            <Spin size="large" />
+            <div style={{ marginTop: 16 }}>
+              <Paragraph>Exchanging Azure token for Unity Catalog session...</Paragraph>
+            </div>
+          </div>
+        )}
+
+        {currentStep === 'completed' && (
+          <div style={{ textAlign: 'center' }}>
+            <Alert
+              type="success"
+              message="Bootstrap Completed Successfully!"
+              description={
+                <div>
+                  <Paragraph>
+                    You now have OWNER privileges in Unity Catalog and are logged in.
+                  </Paragraph>
+                  <Button type="primary" onClick={() => onComplete && onComplete()}>
+                    Continue to Admin Panel
+                  </Button>
+                </div>
+              }
+              showIcon
+            />
           </div>
         )}
 

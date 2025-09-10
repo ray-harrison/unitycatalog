@@ -66,6 +66,11 @@ public class AzureLoginService {
   public AzureLoginStartResponse startAzureLogin(@RequestObject AzureLoginStartRequest request) {
     LOGGER.debug("Starting Azure login flow: {}", request);
 
+    // 1. Validate bootstrap is enabled
+    if (!Boolean.parseBoolean(serverProperties.getProperty("server.bootstrap.enabled", "false"))) {
+      throw new BaseException(ErrorCode.PERMISSION_DENIED, "Bootstrap is disabled");
+    }
+
     // Validate Azure AD configuration
     validateAzureConfiguration();
 

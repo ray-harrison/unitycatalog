@@ -15,11 +15,11 @@ server.cookie-timeout={{ .Values.auth.cookieTimeout }}
 {{- end }}
 
 {{- if .Values.bootstrap.enabled }}
-bootstrap.windowMinutes={{ .Values.bootstrap.windowMinutes }}
+server.bootstrap.enabled=true
+server.bootstrap.window-minutes={{ .Values.bootstrap.windowMinutes }}
 {{- if .Values.bootstrap.initialOwner.upn }}
-bootstrap.initialOwner.upn={{ .Values.bootstrap.initialOwner.upn }}
+server.bootstrap.initial-owner-upn={{ .Values.bootstrap.initialOwner.upn }}
 {{- end }}
-bootstrap.disableLegacyLocalAdmin=false
 {{- end }}
 
 storage-root.models={{ .Values.storage.modelStorageRoot }}

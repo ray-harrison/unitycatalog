@@ -37,8 +37,44 @@ The following table lists the configurable parameters of the Unity Catalog chart
 
 > **Note**
 >
-> Auth integration in UI works only with Google OAuth provider and
-> it does not work with UC versions 0.2.1 and below.
+> Auth integration in UI supports Google OAuth, Microsoft Azure AD, Okta, and Keycloak providers.
+> Authentication does not work with UC versions 0.2.1 and below.
+
+### Authentication Providers
+
+#### Azure AD Authentication
+
+For Azure AD authentication, configure the following values:
+
+```yaml
+auth:
+  enabled: true
+  provider: azure
+  clientSecretName: azure-oauth-secret
+  azureAuthority: https://login.microsoftonline.com/YOUR_TENANT_ID
+  authorizationUrl: https://login.microsoftonline.com/YOUR_TENANT_ID/oauth2/v2.0/authorize
+  tokenUrl: https://login.microsoftonline.com/YOUR_TENANT_ID/oauth2/v2.0/token
+```
+
+Create the OAuth secret:
+```bash
+kubectl create secret generic azure-oauth-secret \
+  --from-literal=clientId=YOUR_AZURE_CLIENT_ID \
+  --from-literal=clientSecret=YOUR_AZURE_CLIENT_SECRET
+```
+
+#### Google OAuth Authentication
+
+For Google OAuth authentication:
+
+```yaml
+auth:
+  enabled: true
+  provider: google
+  clientSecretName: google-oauth-secret
+  authorizationUrl: https://accounts.google.com/o/oauth2/auth
+  tokenUrl: https://oauth2.googleapis.com/token
+```
 
 ### Azure AD Bootstrap
 

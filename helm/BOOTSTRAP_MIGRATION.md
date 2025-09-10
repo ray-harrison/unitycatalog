@@ -1,14 +1,22 @@
-# Azure AD Bootstrap Migration Guide
+# Unity Catalog Bootstrap Migration Guide
+
+This guide covers migrating from legacy local admin tokens to Azure AD-based OWNER bootstrap for Unity Catalog Helm deployments.
 
 ## Overview
 
-This guide covers the migration from legacy local admin token to Azure AD-based OWNER bootstrap for Unity Catalog.
+Unity Catalog supports two bootstrap approaches:
+
+- **Legacy**: Local admin with static token in `etc/conf/token.txt`
+- **Modern**: Azure AD authentication with dynamic OWNER assignment
+
+The Azure AD approach is more secure and aligns with cloud-native practices.
 
 ## Prerequisites
 
-- Azure AD tenant with appropriate permissions
-- Unity Catalog deployed with `bootstrap.enabled: true`
-- Azure service principal or managed identity configured
+- **Azure AD tenant** with appropriate permissions
+- **Unity Catalog server** ready for deployment
+- **Azure service principal or managed identity** configured
+- **Kubernetes cluster** with Helm 3.1+
 
 ## Configuration
 

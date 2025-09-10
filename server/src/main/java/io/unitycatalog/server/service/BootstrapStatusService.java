@@ -34,7 +34,7 @@ public class BootstrapStatusService extends AuthorizedService {
   @ProducesJson
   public BootstrapStatus getBootstrapStatus() {
     boolean bootstrapEnabled =
-        Boolean.parseBoolean(serverProperties.getProperty("bootstrap.enabled", "false"));
+        Boolean.parseBoolean(serverProperties.getProperty("server.bootstrap.enabled", "false"));
     boolean hasAzureAdmin = hasAzureAuthenticatedOwner();
 
     List<String> allowedDomains = parseAllowedDomains();

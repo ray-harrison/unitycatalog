@@ -39,6 +39,7 @@ import { AdminPanel } from './pages/AdminPanel';
 import { AdminStatusDebug } from './components/AdminStatusDebug';
 import { useAdminStatus } from './hooks/adminStatus';
 import DeveloperTokens from './pages/DeveloperTokens';
+import { BootstrapCallback } from './pages/BootstrapCallback';
 
 // TODO:
 // As of [19/02/2025], this implementation should be updated once the following PR are merged.
@@ -48,6 +49,13 @@ const authEnabled =
     (process.env.REACT_APP_GOOGLE_AUTH_ENABLED || '').trim() === 'true' ||
     (process.env.REACT_APP_MS_AUTH_ENABLED || '').trim() === 'true';
 
+// Debug: Log authentication configuration
+console.log('Auth Debug - Environment Variables:', {
+  REACT_APP_GOOGLE_AUTH_ENABLED: process.env.REACT_APP_GOOGLE_AUTH_ENABLED,
+  REACT_APP_MS_AUTH_ENABLED: process.env.REACT_APP_MS_AUTH_ENABLED,
+  authEnabled: authEnabled
+});
+
 const router = createBrowserRouter([
   {
     element: <AppProvider />,
@@ -55,6 +63,10 @@ const router = createBrowserRouter([
       {
         path: '/login',
         element: <Login />,
+      },
+      {
+        path: '/bootstrap/callback',
+        element: <RequireAuth><BootstrapCallback /></RequireAuth>,
       },
       {
         path: '/auth/debug',
@@ -113,6 +125,13 @@ function AppProvider() {
   const { data: adminStatus } = useAdminStatus();
   const navigate = useNavigate();
   const location = useLocation();
+
+  // Debug: Log the authentication state
+  console.log('AppProvider Debug:', {
+    authEnabled: authEnabled,
+    currentUser: currentUser,
+    shouldShowLogin: authEnabled && !currentUser
+  });
 
   // Determine selected menu keys based on current path
   const selectedKeys = useMemo(() => {
@@ -301,7 +320,9 @@ function App() {
   ) : (
     <NotificationProvider>
       <QueryClientProvider client={queryClient}>
-        <RouterProvider router={router} fallbackElement={<p>Loading...</p>} />
+        <AuthProvider>
+          <RouterProvider router={router} fallbackElement={<p>Loading...</p>} />
+        </AuthProvider>
       </QueryClientProvider>
     </NotificationProvider>
   );

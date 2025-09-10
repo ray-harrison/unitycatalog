@@ -65,13 +65,21 @@ public class BootstrapTokenExchangeService extends AuthorizedService {
   public OAuthTokenExchangeInfo bootstrapTokenExchange(
       @Header("Authorization") String authorization) {
 
+    System.out.println("=== BootstrapTokenExchangeService: bootstrapTokenExchange called ===");
+    System.out.println("Authorization header present: " + (authorization != null));
+
     // 1. Validate bootstrap is enabled
-    if (!Boolean.parseBoolean(serverProperties.getProperty("bootstrap.enabled", "false"))) {
+    if (!Boolean.parseBoolean(serverProperties.getProperty("server.bootstrap.enabled", "false"))) {
       throw new BaseException(ErrorCode.PERMISSION_DENIED, "Bootstrap is disabled");
     }
 
     // 2. Extract and validate Azure JWT
     String token = extractBearerToken(authorization);
+    System.out.println("=== BootstrapTokenExchangeService: About to validate token ===");
+    System.out.println("Token length: " + (token != null ? token.length() : "null"));
+    if (token != null && token.length() > 50) {
+      System.out.println("Token prefix: " + token.substring(0, 50) + "...");
+    }
     DecodedJWT azureJwt = jwksOperations.validateAzureJwt(token);
 
     // 3. Extract principal claims
