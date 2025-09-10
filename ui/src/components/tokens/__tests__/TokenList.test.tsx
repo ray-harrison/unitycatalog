@@ -29,27 +29,27 @@ const TestWrapper: React.FC<{ children: React.ReactNode }> = ({ children }) => {
 };
 
 describe('TokenList', () => {
+  const now = new Date().getTime();
   const mockTokens: TokenInfo[] = [
     {
       tokenId: 'tok_active',
       comment: 'Active development token',
-      createdAt: '2025-01-15T10:00:00Z',
-      expiresAt: '2025-01-16T10:00:00Z',
-      lastUsedAt: '2025-01-15T12:00:00Z',
+      creationTime: now - 86400000, // 1 day ago
+      expiryTime: now + 86400000, // 1 day from now
       status: 'ACTIVE',
     },
     {
       tokenId: 'tok_expired',
       comment: 'Expired token',
-      createdAt: '2025-01-14T10:00:00Z',
-      expiresAt: '2025-01-14T11:00:00Z',
+      creationTime: now - 172800000, // 2 days ago
+      expiryTime: now - 86400000, // 1 day ago
       status: 'EXPIRED',
     },
     {
       tokenId: 'tok_revoked',
       comment: 'Revoked token',
-      createdAt: '2025-01-13T10:00:00Z',
-      expiresAt: '2025-01-20T10:00:00Z',
+      creationTime: now - 259200000, // 3 days ago
+      expiryTime: now + 86400000, // 1 day from now
       status: 'REVOKED',
     },
   ];
@@ -127,16 +127,33 @@ describe('TokenList', () => {
     expect(screen.getByRole('table')).toBeInTheDocument();
   });
 
-  test('allows revoking only active tokens', () => {
+  test('allows revoking only active tokens', async () => {
     render(
       <TestWrapper>
         <TokenList />
       </TestWrapper>
     );
 
-    const revokeButtons = screen.getAllByText('Revoke');
+    const revokeButtons = screen.getAllByRole('button');
+    const activeTokenButton = revokeButtons[0];
+    const expiredTokenButton = revokeButtons[1];
+    const revokedTokenButton = revokeButtons[2];
+
+    expect(activeTokenButton).not.toBeDisabled();
+    expect(expiredTokenButton).toBeDisabled();
+    expect(revokedTokenButton).toBeDisabled();
+
+    fireEvent.click(activeTokenButton);
     
-    // Should have revoke buttons for all tokens (some disabled)
-    expect(revokeButtons.length).toBeGreaterThan(0);
+    // Wait for the popconfirm to appear
+    await waitFor(() => {
+      expect(screen.getByText('Are you sure you want to revoke this token? This action cannot be undone.')).toBeInTheDocument();
+    });
+
+    // Click the confirm button
+    const confirmButton = screen.getByText('Revoke');
+    fireEvent.click(confirmButton);
+
+    expect(mockRevokeMutation).toHaveBeenCalledWith('tok_active');
   });
 });
