@@ -127,33 +127,45 @@ describe('TokenList', () => {
     expect(screen.getByRole('table')).toBeInTheDocument();
   });
 
-  test('allows revoking only active tokens', async () => {
+  test('allows revoke action for tokens with appropriate confirmations', async () => {
     render(
       <TestWrapper>
         <TokenList />
       </TestWrapper>
     );
 
-    const revokeButtons = screen.getAllByRole('button');
-    const activeTokenButton = revokeButtons[0];
-    const expiredTokenButton = revokeButtons[1];
-    const revokedTokenButton = revokeButtons[2];
-
-    expect(activeTokenButton).not.toBeDisabled();
-    expect(expiredTokenButton).toBeDisabled();
-    expect(revokedTokenButton).toBeDisabled();
-
-    fireEvent.click(activeTokenButton);
+    const deleteButtons = screen.getAllByRole('button');
     
-    // Wait for the popconfirm to appear
+    // Only revoked tokens should be disabled
+    expect(deleteButtons[0]).not.toBeDisabled(); // Active
+    expect(deleteButtons[1]).not.toBeDisabled(); // Expired (can still be revoked)
+    expect(deleteButtons[2]).toBeDisabled();     // Revoked (already revoked)
+
+    // Click on active token button
+    fireEvent.click(deleteButtons[0]);
+    
+    // Should show revoke confirmation for active token
     await waitFor(() => {
-      expect(screen.getByText('Are you sure you want to revoke this token? This action cannot be undone.')).toBeInTheDocument();
+      expect(screen.getByText('Revoke Token')).toBeInTheDocument();
+      expect(screen.getByText(/become invalid immediately/)).toBeInTheDocument();
     });
 
-    // Click the confirm button
-    const confirmButton = screen.getByText('Revoke');
-    fireEvent.click(confirmButton);
+    // Click cancel to close the popconfirm
+    const cancelButton = screen.getByText('No');
+    fireEvent.click(cancelButton);
 
-    expect(mockRevokeMutation).toHaveBeenCalledWith('tok_active');
+    // Wait for popconfirm to close
+    await waitFor(() => {
+      expect(screen.queryByText('Revoke Token')).not.toBeInTheDocument();
+    });
+
+    // Click on expired token button  
+    fireEvent.click(deleteButtons[1]);
+    
+    // Should show revoke confirmation for expired token with different message
+    await waitFor(() => {
+      expect(screen.getByText('Revoke Token')).toBeInTheDocument();
+      expect(screen.getByText(/remove it from your list/)).toBeInTheDocument();
+    });
   });
 });

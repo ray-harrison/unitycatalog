@@ -2,13 +2,12 @@ import React from 'react';
 import { 
   Table, 
   Button, 
-  Space, 
   Tag, 
   Typography, 
   Popconfirm,
   Tooltip
 } from 'antd';
-import { DeleteOutlined, ExclamationCircleOutlined } from '@ant-design/icons';
+import { DeleteOutlined } from '@ant-design/icons';
 import { useListTokens, useRevokeToken } from '../../hooks/tokens';
 import { TokenInfo } from '../../types/tokens';
 
@@ -77,30 +76,37 @@ export default function TokenList() {
     {
       title: 'Actions',
       key: 'actions',
-      render: (record: TokenInfo) => {
-        const canRevoke = record.status === 'ACTIVE' && record.expiryTime > new Date().getTime();
-        
+      render: (_: any, record: TokenInfo) => {
+        const isExpired = record.expiryTime * 1000 < Date.now();
+        const isRevoked = record.status === 'REVOKED';
+        const isActive = record.status === 'ACTIVE' && !isExpired;
+
+        // Since backend only has "revoke" action, use consistent language
+        const actionText = isActive ? "Revoke Token" : "Revoke Token";
+        const tooltipText = isActive ? "Revoke active token" : "Revoke token";
+        const confirmDescription = isActive 
+          ? "Are you sure you want to revoke this token? It will become invalid immediately."
+          : isExpired 
+            ? "Are you sure you want to revoke this expired token? This will remove it from your list."
+            : "Are you sure you want to revoke this token? It will become invalid immediately.";
+
         return (
-          <Space>
-            <Popconfirm
-              title="Revoke Token"
-              description="Are you sure you want to revoke this token? This action cannot be undone."
-              onConfirm={() => handleRevoke(record.tokenId)}
-              okText="Revoke"
-              cancelText="Cancel"
-              icon={<ExclamationCircleOutlined style={{ color: 'red' }} />}
-              disabled={!canRevoke}
-            >
-              <Tooltip title={canRevoke ? "Revoke Token" : "Cannot revoke expired or already revoked tokens"}>
-                <Button 
-                  danger 
-                  icon={<DeleteOutlined />}
-                  disabled={!canRevoke}
-                  loading={revokeTokenMutation.isPending && revokeTokenMutation.variables === record.tokenId}
-                />
-              </Tooltip>
-            </Popconfirm>
-          </Space>
+          <Popconfirm
+            title={actionText}
+            description={confirmDescription}
+            onConfirm={() => handleRevoke(record.tokenId)}
+            okText="Yes"
+            cancelText="No"
+          >
+            <Tooltip title={tooltipText}>
+              <Button
+                type="text"
+                icon={<DeleteOutlined />}
+                size="small"
+                disabled={isRevoked} // Only disable if already revoked
+              />
+            </Tooltip>
+          </Popconfirm>
         );
       },
     },
