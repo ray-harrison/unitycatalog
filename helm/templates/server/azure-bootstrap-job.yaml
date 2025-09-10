@@ -40,12 +40,7 @@ spec:
                   sleep 5
               done
               
-              # Get metastore ID
-              METASTORE_ID=$(curl --fail-with-body -k \
-                -X GET "http://{{ include "unitycatalog.server.fullname" . }}:{{ .Values.server.deployment.port }}/api/2.1/unity-catalog/metastore_summary" \
-                -H "Content-Type: application/json" | jq -r '.metastore_id')
-              
-              echo "Found metastore ID: ${METASTORE_ID}"
+              echo "Unity Catalog server is ready"
               
               # Get Azure AD token using managed identity or service principal
               echo "Acquiring Azure AD token..."
@@ -65,26 +60,26 @@ spec:
               
               echo "Azure AD token acquired successfully"
               
-              # Call Unity Catalog bootstrap endpoint
-              echo "Calling bootstrap endpoint..."
+              # Call Unity Catalog bootstrap token exchange endpoint
+              echo "Calling bootstrap token exchange endpoint..."
               BOOTSTRAP_RESPONSE=$(curl --fail-with-body -k \
-                -X POST "http://{{ include "unitycatalog.server.fullname" . }}:{{ .Values.server.deployment.port }}/api/2.1/unity-catalog/admins/bootstrap-owner" \
+                -X POST "http://{{ include "unitycatalog.server.fullname" . }}:{{ .Values.server.deployment.port }}/api/1.0/unity-control/auth/bootstrap/token-exchange" \
                 -H "Authorization: Bearer ${AZURE_TOKEN}" \
-                -H "Content-Type: application/json" \
-                -d "{\"metastoreId\": \"${METASTORE_ID}\"}")
+                -H "Content-Type: application/json")
               
               echo "Bootstrap response: ${BOOTSTRAP_RESPONSE}"
               
-              # Extract and securely store PAT token if provided
-              PAT_TOKEN=$(echo "${BOOTSTRAP_RESPONSE}" | jq -r '.patToken // empty')
-              if [ -n "${PAT_TOKEN}" ] && [ "${PAT_TOKEN}" != "null" ] && [ "${PAT_TOKEN}" != "[HIDDEN - Already Issued]" ]; then
-                echo "PAT token received and stored in bootstrap-pat-token secret"
-                kubectl create secret generic "{{ include "unitycatalog.server.fullname" . }}-bootstrap-pat-token" \
-                  --from-literal=token="${PAT_TOKEN}" \
+              # Extract and securely store Unity Catalog access token
+              UC_TOKEN=$(echo "${BOOTSTRAP_RESPONSE}" | jq -r '.access_token // empty')
+              if [ -n "${UC_TOKEN}" ] && [ "${UC_TOKEN}" != "null" ]; then
+                echo "Unity Catalog access token received and stored in bootstrap-access-token secret"
+                kubectl create secret generic "{{ include "unitycatalog.server.fullname" . }}-bootstrap-access-token" \
+                  --from-literal=token="${UC_TOKEN}" \
                   --dry-run=client -o yaml | kubectl apply -f -
-                echo "⚠️  IMPORTANT: Retrieve PAT token from secret '{{ include "unitycatalog.server.fullname" . }}-bootstrap-pat-token' and store securely. This token will not be shown again."
+                echo "✅ Bootstrap completed successfully. Unity Catalog access token stored in secret."
               else
-                echo "No new PAT token in response (bootstrap already completed or idempotent)"
+                echo "❌ No access token in response. Bootstrap may have failed."
+                exit 1
               fi
               
               echo "Azure AD OWNER bootstrap completed successfully"

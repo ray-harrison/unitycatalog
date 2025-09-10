@@ -35,6 +35,11 @@ public class JwksOperations {
     this.expectedTenant = azureTenantId;
     this.expectedIssuer = String.format(AZURE_ISSUER_TEMPLATE, azureTenantId);
 
+    LOGGER.info(
+        "Initializing Azure JWKS operations with tenant: {}, expectedIssuer: {}",
+        azureTenantId,
+        expectedIssuer);
+
     try {
       String jwksUrl = String.format(AZURE_JWKS_URL_TEMPLATE, azureTenantId);
       this.jwkProvider =
@@ -52,10 +57,19 @@ public class JwksOperations {
 
   public DecodedJWT validateAzureJwt(String token) {
     try {
+      LOGGER.debug("Starting Azure JWT validation for token with length: {}", token.length());
+
       // 1. Decode JWT without verification first
       DecodedJWT decodedJWT = JWT.decode(token);
+      LOGGER.debug(
+          "JWT decoded successfully. Issuer: {}, KeyId: {}, Subject: {}",
+          decodedJWT.getIssuer(),
+          decodedJWT.getKeyId(),
+          decodedJWT.getSubject());
 
       // 2. Validate issuer
+      LOGGER.debug(
+          "Validating issuer. Expected: {}, Actual: {}", expectedIssuer, decodedJWT.getIssuer());
       if (!expectedIssuer.equals(decodedJWT.getIssuer())) {
         throw new BaseException(
             ErrorCode.UNAUTHENTICATED,
@@ -63,9 +77,12 @@ public class JwksOperations {
       }
 
       // 3. Get public key from JWKS
+      LOGGER.debug("Fetching public key for keyId: {}", decodedJWT.getKeyId());
       RSAPublicKey publicKey = (RSAPublicKey) jwkProvider.get(decodedJWT.getKeyId()).getPublicKey();
+      LOGGER.debug("Public key retrieved successfully");
 
       // 4. Verify signature and claims
+      LOGGER.debug("Creating JWT verifier and verifying signature");
       Algorithm algorithm = Algorithm.RSA256(publicKey, null);
       JWTVerifier verifier =
           JWT.require(algorithm)
@@ -76,6 +93,7 @@ public class JwksOperations {
               .build();
 
       DecodedJWT verifiedJWT = verifier.verify(decodedJWT);
+      LOGGER.debug("JWT signature verification successful");
 
       LOGGER.debug(
           "Azure JWT validated successfully: subject={}, oid={}",
@@ -85,9 +103,14 @@ public class JwksOperations {
       return verifiedJWT;
 
     } catch (BaseException e) {
+      LOGGER.error("Azure JWT validation failed with BaseException: {}", e.getMessage());
       throw e;
     } catch (Exception e) {
-      LOGGER.warn("Azure JWT validation failed: {}", e.getMessage());
+      LOGGER.error(
+          "Azure JWT validation failed with Exception: {} - {}",
+          e.getClass().getSimpleName(),
+          e.getMessage());
+      LOGGER.debug("Full exception details:", e);
       throw new BaseException(ErrorCode.UNAUTHENTICATED, "Invalid Azure JWT: " + e.getMessage());
     }
   }

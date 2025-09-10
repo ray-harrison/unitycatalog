@@ -1,9 +1,8 @@
 import { useMutation, useQuery } from '@tanstack/react-query';
 import { CLIENT } from '../context/client';
-import { route, isError, assertNever } from '../utils/openapi';
+import { route, isError } from '../utils/openapi';
 import type {
   paths as ControlApi,
-  components as ControlComponent,
 } from '../types/api/control.gen';
 import type {
   paths as CatalogApi,
@@ -11,20 +10,12 @@ import type {
 } from '../types/api/catalog.gen';
 import type {
   Route,
-  SuccessResponseBody,
-  ErrorResponseBody,
-  RequestBody,
 } from '../utils/openapi';
 import { UC_AUTH_API_PREFIX, UC_API_PREFIX } from '../utils/constants';
-import { useAuth } from '../context/auth-context';
-import { useMsalAuth } from '../context/msal-auth-context';
 
 // TODO: Replace with actual admin token from context when available
 // Currently using Unity Catalog token from auth context
 function useAdminHeaders() {
-  const { currentUser } = useAuth();
-  const { getIdToken } = useMsalAuth();
-  
   // TODO: Implement proper admin token retrieval
   // For now, we'll assume the current user's token has admin privileges
   // This should be replaced with actual admin token detection logic

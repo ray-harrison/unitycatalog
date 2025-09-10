@@ -11,23 +11,20 @@ export const useBootstrapStatus = () => {
     queryKey: ['bootstrap-status'],
     queryFn: async (): Promise<BootstrapStatus> => {
       try {
-        // Test if bootstrap endpoint is available
-        const response = await fetch('/api/1.0/unity-control/auth/azure-login/start', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: '{}'
-        });
+        // Check bootstrap status using the correct endpoint
+        const response = await fetch('/api/1.0/unity-control/admins/status/bootstrap-status');
         
         if (response.ok) {
-          return { available: true, needsBootstrap: true };
-        } else if (response.status === 409) {
-          // Conflict - admin already exists
-          return { available: false, needsBootstrap: false };
+          const status = await response.json();
+          return { 
+            available: status.bootstrapEnabled, 
+            needsBootstrap: status.bootstrapEnabled && !status.hasAzureAdmin 
+          };
         } else {
-          return { available: false, needsBootstrap: false, error: 'Bootstrap not enabled' };
+          return { available: false, needsBootstrap: false, error: 'Bootstrap status not available' };
         }
       } catch (error) {
-        return { available: false, needsBootstrap: false, error: 'Bootstrap not available' };
+        return { available: false, needsBootstrap: false, error: 'Bootstrap status check failed' };
       }
     },
     retry: false,
