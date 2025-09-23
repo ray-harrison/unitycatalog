@@ -46,7 +46,7 @@ public class ClaimAdminService extends AuthorizedService {
   public ClaimAdminResponse claimAdmin(@Header("Authorization") String authorization) {
 
     // 1. Validate bootstrap is enabled
-    if (!Boolean.parseBoolean(serverProperties.getProperty("bootstrap.enabled", "false"))) {
+    if (!Boolean.parseBoolean(serverProperties.getProperty("server.bootstrap.enabled", "false"))) {
       throw new BaseException(ErrorCode.PERMISSION_DENIED, "Bootstrap is disabled");
     }
 

@@ -6,7 +6,7 @@ import {
   AuthenticationResult,
   InteractionRequiredAuthError,
 } from '@azure/msal-browser';
-import { MsalProvider, useMsal, useAccount } from '@azure/msal-react';
+import { useMsal, useAccount } from '@azure/msal-react';
 import { useAuth } from './auth-context';
 
 // MSAL Configuration using environment variables
@@ -14,13 +14,20 @@ const msalConfig: Configuration = {
   auth: {
     clientId: process.env.REACT_APP_AZURE_CLIENT_ID || 'test-client-id',
     authority: process.env.REACT_APP_AZURE_AUTHORITY || 'https://login.microsoftonline.com/common',
-    redirectUri: window.location.origin + '/auth/callback',
+    redirectUri: window.location.origin,
   },
   cache: {
     cacheLocation: 'sessionStorage',
     storeAuthStateInCookie: false,
   },
 };
+
+// Debug: Log the configuration being used
+console.log('MSAL Config Debug:', {
+  clientId: process.env.REACT_APP_AZURE_CLIENT_ID || 'test-client-id',
+  authority: process.env.REACT_APP_AZURE_AUTHORITY || 'https://login.microsoftonline.com/common',
+  redirectUri: window.location.origin,
+});
 
 // Initialize MSAL instance
 const msalInstance = new PublicClientApplication(msalConfig);

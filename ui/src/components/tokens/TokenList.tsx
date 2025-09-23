@@ -2,13 +2,12 @@ import React from 'react';
 import { 
   Table, 
   Button, 
-  Space, 
   Tag, 
   Typography, 
   Popconfirm,
   Tooltip
 } from 'antd';
-import { DeleteOutlined, ExclamationCircleOutlined } from '@ant-design/icons';
+import { DeleteOutlined } from '@ant-design/icons';
 import { useListTokens, useRevokeToken } from '../../hooks/tokens';
 import { TokenInfo } from '../../types/tokens';
 
@@ -22,23 +21,23 @@ export default function TokenList() {
     revokeTokenMutation.mutate(tokenId);
   };
 
-  const getStatusTag = (status: TokenInfo['status'], expiresAt: string) => {
-    const now = new Date();
-    const expires = new Date(expiresAt);
+  const getStatusTag = (status: TokenInfo['status'], expiryTime: number) => {
+    const now = new Date().getTime();
     
     if (status === 'REVOKED') {
       return <Tag color="red">REVOKED</Tag>;
     }
     
-    if (status === 'EXPIRED' || expires <= now) {
+    if (status === 'EXPIRED' || expiryTime <= now) {
       return <Tag color="orange">EXPIRED</Tag>;
     }
     
     return <Tag color="green">ACTIVE</Tag>;
   };
 
-  const formatDate = (dateString: string) => {
-    return new Date(dateString).toLocaleString();
+  const formatDate = (timestamp: number) => {
+    if (!timestamp) return <Text type="secondary">N/A</Text>;
+    return new Date(timestamp).toLocaleString();
   };
 
   const columns = [
@@ -51,33 +50,25 @@ export default function TokenList() {
     {
       title: 'Status',
       key: 'status',
-      render: (record: TokenInfo) => getStatusTag(record.status, record.expiresAt),
+      render: (record: TokenInfo) => getStatusTag(record.status, record.expiryTime),
     },
     {
       title: 'Created',
-      dataIndex: 'createdAt',
-      key: 'createdAt',
+      dataIndex: 'creationTime',
+      key: 'creationTime',
       render: formatDate,
     },
     {
-      title: 'Last Used',
-      dataIndex: 'lastUsedAt',
-      key: 'lastUsedAt',
-      render: (lastUsedAt: string) => 
-        lastUsedAt ? formatDate(lastUsedAt) : <Text type="secondary">Never</Text>,
-    },
-    {
       title: 'Expires',
-      dataIndex: 'expiresAt',
-      key: 'expiresAt',
-      render: (expiresAt: string) => {
-        const expires = new Date(expiresAt);
-        const now = new Date();
-        const isExpired = expires <= now;
+      dataIndex: 'expiryTime',
+      key: 'expiryTime',
+      render: (expiryTime: number) => {
+        const now = new Date().getTime();
+        const isExpired = expiryTime <= now;
         
         return (
           <Text type={isExpired ? 'secondary' : undefined}>
-            {formatDate(expiresAt)}
+            {formatDate(expiryTime)}
           </Text>
         );
       },
@@ -85,42 +76,37 @@ export default function TokenList() {
     {
       title: 'Actions',
       key: 'actions',
-      render: (record: TokenInfo) => {
-        const canRevoke = record.status === 'ACTIVE';
-        
+      render: (_: any, record: TokenInfo) => {
+        const isExpired = record.expiryTime * 1000 < Date.now();
+        const isRevoked = record.status === 'REVOKED';
+        const isActive = record.status === 'ACTIVE' && !isExpired;
+
+        // Since backend only has "revoke" action, use consistent language
+        const actionText = isActive ? "Revoke Token" : "Revoke Token";
+        const tooltipText = isActive ? "Revoke active token" : "Revoke token";
+        const confirmDescription = isActive 
+          ? "Are you sure you want to revoke this token? It will become invalid immediately."
+          : isExpired 
+            ? "Are you sure you want to revoke this expired token? This will remove it from your list."
+            : "Are you sure you want to revoke this token? It will become invalid immediately.";
+
         return (
-          <Space>
-            {canRevoke ? (
-              <Popconfirm
-                title="Revoke Token"
-                description="Are you sure you want to revoke this token? This action cannot be undone."
-                onConfirm={() => handleRevoke(record.tokenId)}
-                okText="Revoke"
-                cancelText="Cancel"
-                icon={<ExclamationCircleOutlined style={{ color: 'red' }} />}
-              >
-                <Button 
-                  type="text" 
-                  danger 
-                  icon={<DeleteOutlined />}
-                  loading={revokeTokenMutation.isPending}
-                >
-                  Revoke
-                </Button>
-              </Popconfirm>
-            ) : (
-              <Tooltip title="Cannot revoke expired or already revoked tokens">
-                <Button 
-                  type="text" 
-                  danger 
-                  icon={<DeleteOutlined />}
-                  disabled
-                >
-                  Revoke
-                </Button>
-              </Tooltip>
-            )}
-          </Space>
+          <Popconfirm
+            title={actionText}
+            description={confirmDescription}
+            onConfirm={() => handleRevoke(record.tokenId)}
+            okText="Yes"
+            cancelText="No"
+          >
+            <Tooltip title={tooltipText}>
+              <Button
+                type="text"
+                icon={<DeleteOutlined />}
+                size="small"
+                disabled={isRevoked} // Only disable if already revoked
+              />
+            </Tooltip>
+          </Popconfirm>
         );
       },
     },

@@ -24,7 +24,17 @@ const AuthContext = React.createContext<AuthContextProps>({
 AuthContext.displayName = 'AuthContext';
 
 function AuthProvider(props: any) {
-  const { data: currentUser, refetch } = useGetCurrentUser();
+  // Check if authentication is enabled
+  const authEnabled = 
+    (process.env.REACT_APP_GOOGLE_AUTH_ENABLED || '').trim() === 'true' ||
+    (process.env.REACT_APP_MS_AUTH_ENABLED || '').trim() === 'true';
+
+  // In bootstrap mode, we start with auth disabled but can enable it after token exchange
+  const [bootstrapAuthEnabled, setBootstrapAuthEnabled] = React.useState(false);
+  const isAuthActive = authEnabled || bootstrapAuthEnabled;
+
+  // Only fetch current user if authentication is active
+  const { data: currentUser, refetch } = useGetCurrentUser(isAuthActive);
   const loginWithTokenMutation = useLoginWithToken();
   const logoutUser = useLogoutCurrentUser();
   const { setNotification } = useNotification();
@@ -40,6 +50,8 @@ function AuthProvider(props: any) {
         },
         {
           onSuccess: () => {
+            // Enable auth mode and refetch user after successful token exchange
+            setBootstrapAuthEnabled(true);
             refetch();
           },
           onError: () => {

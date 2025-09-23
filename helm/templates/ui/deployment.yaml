@@ -110,6 +110,14 @@ spec:
               mv temp.json package.json
               yarn start
           env:
+          {{- if .Values.ui.deployment.host }}
+            - name: HOST
+              value: "{{ .Values.ui.deployment.host }}"
+          {{- end }}
+          {{- if .Values.ui.deployment.disableHostCheck }}
+            - name: DANGEROUSLY_DISABLE_HOST_CHECK
+              value: "{{ .Values.ui.deployment.disableHostCheck }}"
+          {{- end }}
           {{- if .Values.auth.enabled }}
             - name: REACT_APP_GOOGLE_AUTH_ENABLED
               value: "{{ eq .Values.auth.provider "google" }}"
@@ -138,6 +146,15 @@ spec:
                 secretKeyRef:
                   name: {{ .Values.auth.clientSecretName | quote }}
                   key: clientId
+            - name: REACT_APP_MS_AUTH_ENABLED
+              value: "{{ eq .Values.auth.provider "azure" }}"
+            - name: REACT_APP_MS_CLIENT_ID
+              valueFrom:
+                secretKeyRef:
+                  name: {{ .Values.auth.clientSecretName | quote }}
+                  key: clientId
+            - name: REACT_APP_MS_AUTHORITY
+              value: "{{ .Values.auth.azureAuthority }}"
           {{- end }}
           {{- with .Values.ui.deployment.resources }}
           resources: {{- toYaml . | nindent 12 }}

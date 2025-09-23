@@ -14,11 +14,9 @@ export interface CreateTokenResponse {
 export interface TokenInfo {
   tokenId: string;
   comment?: string;
-  createdAt: string;
-  expiresAt: string;
-  lastUsedAt?: string;
+  creationTime: number;
+  expiryTime: number;
   status: 'ACTIVE' | 'EXPIRED' | 'REVOKED';
-  // tokenValue is NEVER returned in list responses for security
 }
 
 export interface ListTokensResponse {

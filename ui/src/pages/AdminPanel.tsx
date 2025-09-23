@@ -4,16 +4,14 @@ import { UserOutlined, SafetyOutlined } from '@ant-design/icons';
 import { UsersTab } from '../components/admin/UsersTab';
 import { PermissionsTab } from '../components/admin/PermissionsTab';
 import { BootstrapFlow } from '../components/BootstrapFlow';
-import { useAuth } from '../context/auth-context';
 import { useAdminStatus } from '../hooks/adminStatus';
 import { useBootstrapStatus } from '../hooks/bootstrap';
 
 const { Title } = Typography;
 
 export function AdminPanel() {
-  const { currentUser } = useAuth();
   const { data: adminStatus, isLoading: adminLoading, refetch: refetchAdminStatus } = useAdminStatus();
-  const { data: bootstrapStatus, isLoading: bootstrapLoading } = useBootstrapStatus();
+  const { data: bootstrapStatus, isLoading: bootstrapLoading, refetch: refetchBootstrapStatus } = useBootstrapStatus();
   
   // Show loading while checking status
   if (adminLoading || bootstrapLoading) {
@@ -66,28 +64,18 @@ export function AdminPanel() {
   if (bootstrapStatus?.available && bootstrapStatus?.needsBootstrap) {
     return (
       <BootstrapFlow 
-        onComplete={() => {
-          // Refresh admin status after successful bootstrap
-          refetchAdminStatus();
+        onComplete={async () => {
+          // Refresh both admin status and bootstrap status after successful bootstrap
+          console.log('Bootstrap completed, refreshing statuses...');
+          await Promise.all([
+            refetchAdminStatus(),
+            refetchBootstrapStatus()
+          ]);
+          console.log('Status refresh completed');
         }} 
       />
     );
   }
-
-// Helper function to check if user has admin privileges
-function checkIsAdmin(user: any): boolean {
-  // Check if user has admin/OWNER role in their token claims
-  // This should be replaced with proper role checking based on Unity Catalog's auth model
-  
-  // For now, check if user is in admin role or has specific admin attributes
-  // This is a placeholder - in production, this should check:
-  // 1. User's role claims from Unity Catalog token
-  // 2. Whether user has OWNER privileges on the catalog
-  // 3. Or check against a specific admin token/role endpoint
-  
-  return false; // Temporarily block all users until proper admin checking is implemented
-}
-
   
   // No admin access and no bootstrap available - show access denied
   return (

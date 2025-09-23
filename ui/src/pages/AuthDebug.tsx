@@ -1,5 +1,5 @@
 import React from 'react';
-import { Card, Descriptions, Typography, Alert, Button, Space, Divider, Input, message } from 'antd';
+import { Card, Descriptions, Typography, Alert, Button, Space, Input, message } from 'antd';
 import { CopyOutlined } from '@ant-design/icons';
 import { useMsalAuth } from '../context/msal-auth-context';
 import { useAuth } from '../context/auth-context';
@@ -49,7 +49,7 @@ export function AuthDebug() {
         throw new Error('No Azure ID token available');
       }
 
-      const result = await new Promise((resolve, reject) => {
+      await new Promise((resolve, reject) => {
         loginWithTokenMutation.mutate(
           {
             grant_type: GrantType.TOKEN_EXCHANGE,

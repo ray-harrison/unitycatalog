@@ -98,7 +98,7 @@ export function useLogoutCurrentUser() {
 export interface UserInterface
   extends Model<ControlComponent, 'UserResource'> {}
 
-export function useGetCurrentUser() {
+export function useGetCurrentUser(enabled: boolean = true) {
   const expectedErrorCodes = [
     401, // UNAUTHORIZED
   ] as const;
@@ -117,6 +117,7 @@ export function useGetCurrentUser() {
 
   return useQuery<SuccessResponseBody<ControlApi, '/scim2/Me', 'get'> | null>({
     queryKey: ['getUser'],
+    enabled: enabled, // Only run the query if enabled
     queryFn: async () => {
       const response = await (route as Route<ControlApi>)({
         client: CLIENT,

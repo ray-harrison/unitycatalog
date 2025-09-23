@@ -179,7 +179,8 @@ public class UnityCatalogServer {
         new TemporaryPathCredentialsService(cloudCredentialVendor);
     // TODO: Configure Azure tenant ID from server properties
     String azureTenantId =
-        unityCatalogServerBuilder.serverProperties.getProperty("azure.tenant.id", "common");
+        unityCatalogServerBuilder.serverProperties.getProperty(
+            "server.azure-ad.tenant-id", "common");
     JwksOperations jwksOperations = new JwksOperations(azureTenantId);
     AdminBootstrapService adminBootstrapService =
         new AdminBootstrapService(authorizer, repositories, jwksOperations);
@@ -350,6 +351,7 @@ public class UnityCatalogServer {
           .exclude(CONTROL_PATH + "auth/bootstrap/token-exchange")
           .exclude(CONTROL_PATH + "auth/azure-login/start")
           .exclude(CONTROL_PATH + "auth/azure-login/callback")
+          .exclude(CONTROL_PATH + "admins/status/bootstrap-status")
           .exclude(CONTROL_PATH + "admins/bootstrap-owner")
           .build(accessDecorator);
 
@@ -362,6 +364,7 @@ public class UnityCatalogServer {
           .exclude(CONTROL_PATH + "auth/bootstrap/token-exchange")
           .exclude(CONTROL_PATH + "auth/azure-login/start")
           .exclude(CONTROL_PATH + "auth/azure-login/callback")
+          .exclude(CONTROL_PATH + "admins/status/bootstrap-status")
           .exclude(CONTROL_PATH + "admins/bootstrap-owner")
           .build(authDecorator);
 
