@@ -649,6 +649,41 @@ The CLI can be configured to talk to Databricks Unity Catalog by one of the foll
 Each parameter can be configured either from the CLI or the configuration file, independently of each other.
 The CLI will prioritize the values provided from the CLI over the configuration file.
 
+### Environment Variables for S3-Compatible Services
+
+When using the CLI with S3-compatible services (like MinIO), you may need to set the `UC_S3_ENDPOINT` environment variable to override the default S3 endpoint. This is particularly useful when the CLI needs to access S3-compatible storage that differs from the server's configuration.
+
+#### Setting UC_S3_ENDPOINT
+
+**For bash/zsh:**
+```bash
+export UC_S3_ENDPOINT=http://localhost:9000
+bin/uc table create --full_name unity.default.my_table --columns "id INT, name STRING" --storage_location s3://my-bucket/path/
+```
+
+**For fish shell:**
+```fish
+set -x UC_S3_ENDPOINT http://localhost:9000
+bin/uc table create --full_name unity.default.my_table --columns "id INT, name STRING" --storage_location s3://my-bucket/path/
+```
+
+!!! note "Server Configuration Required"
+    
+    Setting `UC_S3_ENDPOINT` alone is not sufficient. The Unity Catalog server must also be configured with the corresponding S3 endpoint settings:
+    
+    - `s3.endpoint.<number>`: Server-side S3 endpoint URL
+    - `s3.stsEndpoint.<number>`: Server-side STS endpoint URL
+    
+    Refer to the [server configuration](../server/configuration.md) documentation for complete S3-compatible service setup.
+
+#### Supported S3-Compatible Services
+
+- **MinIO**: Set `UC_S3_ENDPOINT=http://localhost:9000`
+- **LocalStack**: Set `UC_S3_ENDPOINT=http://localhost:4566`
+- **Custom S3-compatible services**: Set to your service's endpoint URL
+
+The CLI will use this environment variable when making S3 requests, while the server will use its configured `s3.endpoint.<number>` setting for credential vending.
+
 !!! feedback "Different look for users CLI commands"
 
     We're trying out a different look for the CLI commands - which do you prefer - the format above this or the format below? Chime in UC GitHub discussion [529](https://github.com/unitycatalog/unitycatalog/discussions/529) and let us know!
