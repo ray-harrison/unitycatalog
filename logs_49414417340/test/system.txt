@@ -1,0 +1,5 @@
+2025-11-07T19:33:05.7200000Z Requested labels: ubuntu-latest
+2025-11-07T19:33:05.7200000Z Job defined at: unitycatalog/unitycatalog/.github/workflows/python-client-tests.yml@refs/pull/1173/merge
+2025-11-07T19:33:05.7200000Z Waiting for a runner to pick up this job...
+2025-11-07T19:33:06.7190000Z Job is waiting for a hosted runner to come online.
+2025-11-07T19:33:06.7200000Z Job is about to start running on the hosted runner: GitHub Actions 1000008090
