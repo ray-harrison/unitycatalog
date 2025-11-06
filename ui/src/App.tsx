@@ -28,6 +28,7 @@ import { NotificationProvider } from './utils/NotificationContext';
 import ModelDetails from './pages/ModelDetails';
 import Login from './pages/Login';
 import { AuthProvider, useAuth } from './context/auth-context';
+import { AzureAuthProvider } from './components/AzureAuthProvider';
 import { UserOutlined } from '@ant-design/icons';
 import ModelVersionDetails from './pages/ModelVersionDetails';
 
@@ -35,7 +36,9 @@ import ModelVersionDetails from './pages/ModelVersionDetails';
 // As of [19/02/2025], this implementation should be updated once the following PR are merged.
 // SEE:
 // https://github.com/unitycatalog/unitycatalog/pull/809
-const authEnabled = process.env.REACT_APP_GOOGLE_AUTH_ENABLED === 'true';
+const authEnabled =
+  process.env.REACT_APP_GOOGLE_AUTH_ENABLED === 'true' ||
+  process.env.REACT_APP_MS_AUTH_ENABLED === 'true';
 
 const router = createBrowserRouter([
   {
@@ -218,7 +221,9 @@ function App() {
     defaultOptions: { queries: { staleTime: QUERY_STALE_TIME } },
   });
 
-  return authEnabled ? (
+  const msAuthEnabled = process.env.REACT_APP_MS_AUTH_ENABLED === 'true';
+
+  const appContent = authEnabled ? (
     <NotificationProvider>
       <QueryClientProvider client={queryClient}>
         <AuthProvider>
@@ -232,6 +237,13 @@ function App() {
         <RouterProvider router={router} fallbackElement={<p>Loading...</p>} />
       </QueryClientProvider>
     </NotificationProvider>
+  );
+
+  // Wrap with AzureAuthProvider if MS auth is enabled
+  return msAuthEnabled ? (
+    <AzureAuthProvider>{appContent}</AzureAuthProvider>
+  ) : (
+    appContent
   );
 }
 

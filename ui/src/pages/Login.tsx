@@ -2,6 +2,7 @@ import { Flex, Layout, Typography } from 'antd';
 import React from 'react';
 import GoogleAuthButton from '../components/login/GoogleAuthButton';
 import OktaAuthButton from '../components/login/OktaAuthButton';
+import MicrosoftAuthButton from '../components/login/MicrosoftAuthButton';
 import { useAuth } from '../context/auth-context';
 import KeycloakAuthButton from '../components/login/KeycloakAuthButton';
 import { useNavigate, useLocation } from 'react-router-dom';
@@ -15,6 +16,7 @@ export default function LoginPage() {
   const oktaEnabled = process.env.REACT_APP_OKTA_AUTH_ENABLED === 'true';
   const keycloakEnabled =
     process.env.REACT_APP_KEYCLOAK_AUTH_ENABLED === 'true';
+  const microsoftEnabled = process.env.REACT_APP_MS_AUTH_ENABLED === 'true';
 
   const handleGoogleSignIn = async (idToken: string) => {
     await loginWithToken(idToken).then(() => navigate(from, { replace: true }));
@@ -71,9 +73,15 @@ export default function LoginPage() {
               />
             )}
             {keycloakEnabled && <KeycloakAuthButton />}
-            {!googleEnabled && !oktaEnabled && !keycloakEnabled && (
-              <Typography>Auth providers have not been enabled</Typography>
+            {microsoftEnabled && (
+              <MicrosoftAuthButton onMicrosoftSignIn={handleGoogleSignIn} />
             )}
+            {!googleEnabled &&
+              !oktaEnabled &&
+              !keycloakEnabled &&
+              !microsoftEnabled && (
+                <Typography>Auth providers have not been enabled</Typography>
+              )}
           </Flex>
         </div>
       </Flex>

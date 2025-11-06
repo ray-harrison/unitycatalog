@@ -32,8 +32,11 @@ import io.unitycatalog.control.model.User;
 import io.unitycatalog.server.exception.ErrorCode;
 import io.unitycatalog.server.exception.GlobalExceptionHandler;
 import io.unitycatalog.server.exception.OAuthInvalidRequestException;
+import io.unitycatalog.server.model.AzureAdTokenClaims;
+import io.unitycatalog.server.model.UserIdentity;
 import io.unitycatalog.server.persist.Repositories;
 import io.unitycatalog.server.persist.UserRepository;
+import io.unitycatalog.server.persist.model.CreateUser;
 import io.unitycatalog.server.security.JwtClaim;
 import io.unitycatalog.server.security.SecurityContext;
 import io.unitycatalog.server.utils.JwksOperations;
@@ -138,10 +141,12 @@ public class AuthService {
     DecodedJWT decodedJWT = JWT.decode(form.getSubjectToken());
     String issuer = decodedJWT.getIssuer();
     String keyId = decodedJWT.getKeyId();
+    String algorithm = decodedJWT.getAlgorithm();
 
-    LOGGER.debug("Validating token for issuer: {} and keyId: {}", issuer, keyId);
+    LOGGER.debug(
+        "Validating token for issuer: {}, keyId: {}, algorithm: {}", issuer, keyId, algorithm);
 
-    JWTVerifier jwtVerifier = jwksOperations.verifierForIssuerAndKey(issuer, keyId);
+    JWTVerifier jwtVerifier = jwksOperations.verifierForIssuerAndKey(issuer, keyId, algorithm);
     decodedJWT = jwtVerifier.verify(decodedJWT);
     verifyPrincipal(decodedJWT);
 
@@ -192,6 +197,81 @@ public class AuthService {
   }
 
   private void verifyPrincipal(DecodedJWT decodedJWT) {
+    String issuer = decodedJWT.getIssuer();
+
+    // For Azure AD tokens, auto-provision user if they don't exist
+    if (issuer != null
+        && (issuer.contains("login.microsoftonline.com") || issuer.contains("sts.windows.net"))) {
+      LOGGER.debug("Azure AD token detected, auto-provisioning user if needed");
+
+      try {
+        // Extract Azure AD claims
+        AzureAdTokenClaims claims = jwksOperations.extractAzureAdClaims(decodedJWT);
+
+        // Use email or preferred_username as the user identifier
+        String email = claims.getEmail();
+        if (email == null || email.trim().isEmpty()) {
+          email = claims.getPreferredUsername();
+        }
+
+        if (email == null || email.trim().isEmpty()) {
+          throw new OAuthInvalidRequestException(
+              ErrorCode.INVALID_ARGUMENT,
+              "Azure AD token missing email or preferred_username claim");
+        }
+
+        // Check if user already exists
+        User existingUser = null;
+        try {
+          existingUser = userRepository.getUserByEmail(email);
+        } catch (Exception e) {
+          // User doesn't exist, will create below
+          LOGGER.debug("User not found, will auto-provision: {}", email);
+        }
+
+        if (existingUser != null) {
+          if (existingUser.getState() == User.StateEnum.ENABLED) {
+            LOGGER.debug("Existing Azure AD user found and enabled: {}", email);
+            return;
+          } else {
+            throw new OAuthInvalidRequestException(
+                ErrorCode.PERMISSION_DENIED, "User is disabled: " + email);
+          }
+        }
+
+        // Auto-provision the user
+        String displayName = claims.getName();
+        if (displayName == null || displayName.trim().isEmpty()) {
+          displayName = email; // Fallback to email if name not provided
+        }
+
+        CreateUser createUser =
+            CreateUser.builder()
+                .name(displayName)
+                .email(email)
+                .externalId(claims.getObjectId()) // Use Azure AD object ID as external ID
+                .active(true)
+                .build();
+
+        User newUser = userRepository.createUser(createUser);
+        LOGGER.info(
+            "Auto-provisioned Azure AD user: {} ({}), objectId: {}",
+            newUser.getName(),
+            newUser.getEmail(),
+            newUser.getExternalId());
+
+        return;
+
+      } catch (OAuthInvalidRequestException e) {
+        throw e;
+      } catch (Exception e) {
+        LOGGER.error("Error processing Azure AD token: {}", e.getMessage(), e);
+        throw new OAuthInvalidRequestException(
+            ErrorCode.INTERNAL, "Error processing Azure AD token: " + e.getMessage());
+      }
+    }
+
+    // For internal tokens, verify against user repository
     String subject =
         decodedJWT
             .getClaims()
@@ -224,6 +304,122 @@ public class AuthService {
         .path(path)
         .maxAge(Duration.parse(maxAge).getSeconds())
         .build();
+  }
+
+  /**
+   * Validate an Azure AD JWT token. Verifies signature, issuer, audience, and expiration.
+   *
+   * @param token JWT token string
+   * @param expectedAudience Expected audience (client ID)
+   * @return Validated UserIdentity
+   * @throws OAuthInvalidRequestException if token is invalid
+   */
+  public UserIdentity validateAzureAdToken(String token, String expectedAudience) {
+    if (token == null || token.trim().isEmpty()) {
+      throw new OAuthInvalidRequestException(ErrorCode.INVALID_ARGUMENT, "Token is required");
+    }
+
+    // Decode token
+    DecodedJWT decodedJWT;
+    try {
+      decodedJWT = JWT.decode(token);
+    } catch (Exception e) {
+      throw new OAuthInvalidRequestException(
+          ErrorCode.INVALID_ARGUMENT, "Invalid JWT token: " + e.getMessage());
+    }
+
+    // Verify signature using JWKS
+    String issuer = decodedJWT.getIssuer();
+    String keyId = decodedJWT.getKeyId();
+
+    if (issuer == null || !issuer.contains("login.microsoftonline.com")) {
+      throw new OAuthInvalidRequestException(
+          ErrorCode.INVALID_ARGUMENT, "Invalid Azure AD issuer: " + issuer);
+    }
+
+    String algorithm = decodedJWT.getAlgorithm();
+    LOGGER.debug(
+        "Validating Azure AD token for issuer: {}, keyId: {}, algorithm: {}",
+        issuer,
+        keyId,
+        algorithm);
+
+    JWTVerifier jwtVerifier = jwksOperations.verifierForIssuerAndKey(issuer, keyId, algorithm);
+    decodedJWT = jwtVerifier.verify(decodedJWT);
+
+    // Extract and validate claims
+    AzureAdTokenClaims claims = jwksOperations.extractAzureAdClaims(decodedJWT);
+
+    // Validate issuer format
+    if (!validateIssuer(claims.getIssuer())) {
+      throw new OAuthInvalidRequestException(
+          ErrorCode.INVALID_ARGUMENT, "Invalid issuer: " + claims.getIssuer());
+    }
+
+    // Validate audience
+    if (!validateAudience(claims.getAudience(), expectedAudience)) {
+      throw new OAuthInvalidRequestException(
+          ErrorCode.INVALID_ARGUMENT,
+          "Invalid audience: " + claims.getAudience() + ", expected: " + expectedAudience);
+    }
+
+    // Check expiration
+    if (claims.isExpired()) {
+      throw new OAuthInvalidRequestException(ErrorCode.INVALID_ARGUMENT, "Token has expired");
+    }
+
+    // Check not-before
+    if (claims.isNotYetValid()) {
+      throw new OAuthInvalidRequestException(ErrorCode.INVALID_ARGUMENT, "Token is not yet valid");
+    }
+
+    // Validate required claims
+    try {
+      claims.validate();
+    } catch (IllegalArgumentException e) {
+      throw new OAuthInvalidRequestException(
+          ErrorCode.INVALID_ARGUMENT, "Invalid token claims: " + e.getMessage());
+    }
+
+    // Convert to UserIdentity
+    UserIdentity identity = UserIdentity.fromAzureAdToken(claims);
+    LOGGER.info(
+        "Validated Azure AD token for user: {} ({})",
+        identity.getDisplayName(),
+        identity.getUserId());
+
+    return identity;
+  }
+
+  /**
+   * Validate issuer is a valid Azure AD tenant URL.
+   *
+   * @param issuer Issuer claim from JWT
+   * @return true if issuer is valid
+   */
+  private boolean validateIssuer(String issuer) {
+    if (issuer == null || issuer.trim().isEmpty()) {
+      return false;
+    }
+
+    // Azure AD issuer format: https://login.microsoftonline.com/{tenant-id}/v2.0
+    // or https://sts.windows.net/{tenant-id}/
+    return issuer.startsWith("https://login.microsoftonline.com/")
+        || issuer.startsWith("https://sts.windows.net/");
+  }
+
+  /**
+   * Validate audience matches expected client ID.
+   *
+   * @param audience Audience claim from JWT
+   * @param expectedAudience Expected audience (client ID)
+   * @return true if audience is valid
+   */
+  private boolean validateAudience(String audience, String expectedAudience) {
+    if (audience == null || expectedAudience == null) {
+      return false;
+    }
+    return audience.equals(expectedAudience);
   }
 
   // NOTE:

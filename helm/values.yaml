@@ -274,6 +274,51 @@ server:
     #
     override:
 
+    # -- (object) JWKS (JSON Web Key Set) configuration for JWT validation
+    # @default -- see individual properties
+    # @raw
+    #
+    # Used when server.authorization is enabled with Azure AD or other OIDC providers
+    #
+    jwks:
+      # -- (string) HTTP client for JWKS endpoint requests
+      # @raw
+      #
+      # Supported values:
+      # - `armeria` (default): High-performance Armeria WebClient
+      # - `java`: Standard Java 11+ HttpClient (better DNS resolution in some networks)
+      #
+      # Use `java` if experiencing DNS issues in enterprise environments
+      #
+      httpClient: armeria
+
+      # -- (string) Cache TTL for JWKS keys
+      # @raw
+      #
+      # Format: duration string (e.g., "24h", "1440m", "86400s")
+      # Default: "24h"
+      #
+      # Azure AD rotates keys periodically. Cache should be long enough to reduce
+      # external requests but short enough to pick up key rotations.
+      #
+      cacheTtl: "24h"
+
+      # -- (int) Maximum number of JWKS keys to cache
+      # @raw
+      #
+      # Default: 10
+      # Should cover current key + previous keys during rotation overlap
+      #
+      cacheMaxKeys: 10
+
+      # -- (int) Rate limit for JWKS endpoint requests (per minute)
+      # @raw
+      #
+      # Default: 10
+      # Prevents overwhelming OIDC provider during key rotation or issues
+      #
+      rateLimit: 10
+
     # -- (object) Extra config properties that will be added to server.properties
     # @default -- not set
     # @raw
@@ -594,6 +639,85 @@ ui:
   # The default value is set to the server service URL.
   #
   serverUrl: http://{{ include "unitycatalog.server.fullname" . }}:{{ .Values.server.service.port }}
+
+  env:
+    # -- (object) Azure Active Directory authentication configuration
+    # @default -- see individual properties
+    # @raw
+    #
+    # Used to configure Azure AD authentication in the UI
+    # These values are injected as REACT_APP_* environment variables
+    #
+    azureAd:
+      # -- (bool) Enable Azure AD authentication
+      # @raw
+      #
+      # Set to true to enable MSAL authentication flow
+      # Default: false (authentication disabled)
+      #
+      enabled: false
+
+      # -- (string) Azure AD SPA client ID
+      # @default -- not set
+      # @raw
+      #
+      # Get from Azure Portal > App registrations > Your SPA App > Overview
+      # This is DIFFERENT from the server web app client ID
+      # Required when azureAd.enabled is true
+      #
+      # Example: "12345678-1234-1234-1234-123456789012"
+      #
+      clientId: ""
+
+      # -- (string) Azure AD authority URL
+      # @default -- not set
+      # @raw
+      #
+      # Format: https://login.microsoftonline.com/{tenant-id}
+      # Required when azureAd.enabled is true
+      #
+      # Example: "https://login.microsoftonline.com/common" (multi-tenant)
+      # Example: "https://login.microsoftonline.com/12345678-1234-1234-1234-123456789012" (single tenant)
+      #
+      authority: ""
+
+      # -- (string) OAuth redirect URI after authentication
+      # @default -- not set
+      # @raw
+      #
+      # Must match redirect URI registered in Azure AD app
+      # Required when azureAd.enabled is true
+      #
+      # Example: "https://unitycatalog.example.com"
+      # Example: "http://localhost:3000" (for local development)
+      #
+      redirectUri: ""
+
+      # -- (string) OAuth post-logout redirect URI
+      # @default -- not set (uses redirectUri)
+      # @raw
+      #
+      # URI to redirect after user signs out
+      # Optional - if not set, uses redirectUri
+      #
+      # Example: "https://unitycatalog.example.com/logout"
+      #
+      postLogoutRedirectUri: ""
+
+      # -- (array) OAuth scopes to request
+      # @raw
+      #
+      # Default scopes for Unity Catalog API access
+      # Format: ["api://{server-client-id}/Catalog.Read", "api://{server-client-id}/Catalog.Write"]
+      #
+      # Example:
+      # ```yaml
+      # scopes:
+      #   - "api://87654321-4321-4321-4321-210987654321/Catalog.Read"
+      #   - "api://87654321-4321-4321-4321-210987654321/Catalog.Write"
+      # ```
+      #
+      scopes: []
 
   deployment:
     # -- (int) Port for the UI deployment

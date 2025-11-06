@@ -1,0 +1,66 @@
+# Azure AD Authentication Configuration for Unity Catalog Server
+# Copy this file to server.properties.local and fill in your Azure AD application details
+# IMPORTANT: server.properties.local is gitignored and should contain your actual credentials
+
+# ============================================================================
+# Azure AD JWKS HTTP Client Configuration
+# ============================================================================
+
+# HTTP client to use for JWKS endpoint requests
+# Options:
+#   - armeria (default): High-performance Armeria WebClient (existing dependency)
+#   - java: Standard Java 11+ HttpClient (better DNS resolution in some networks)
+# 
+# Use 'java' if you experience DNS resolution issues or connection timeouts
+# when fetching JWKS keys from Azure AD in enterprise networks
+server.jwks.http-client=armeria
+
+# ============================================================================
+# JWKS Cache Configuration
+# ============================================================================
+
+# Cache TTL (Time To Live) for JWKS keys
+# Format: number + unit (h=hours, m=minutes, d=days)
+# Default: 24h
+# Azure AD rotates keys periodically, so cache should be long enough to reduce
+# external requests but short enough to pick up key rotations
+server.jwks.cache-ttl=24h
+
+# Maximum number of JWKS keys to cache
+# Default: 10
+# Should cover current key + previous keys during rotation overlap
+server.jwks.cache-max-keys=10
+
+# Rate limit for JWKS endpoint requests (requests per minute)
+# Default: 10
+# Prevents overwhelming Azure AD endpoint during key rotation or issues
+server.jwks.rate-limit=10
+
+# ============================================================================
+# Azure AD OIDC Configuration (Required when server.authorization=enable)
+# ============================================================================
+
+# Enable/disable authorization
+# Set to "enable" to require authentication, "disable" to allow anonymous access
+# server.authorization=enable
+
+# Azure AD Authorization URL (tenant-specific)
+# Format: https://login.microsoftonline.com/{tenant-id}/oauth2/v2.0/authorize
+# Replace {tenant-id} with your Azure AD tenant ID
+# server.authorization-url=https://login.microsoftonline.com/your-tenant-id-here/oauth2/v2.0/authorize
+
+# Azure AD Token URL (tenant-specific)
+# Format: https://login.microsoftonline.com/{tenant-id}/oauth2/v2.0/token
+# Replace {tenant-id} with your Azure AD tenant ID
+# server.token-url=https://login.microsoftonline.com/your-tenant-id-here/oauth2/v2.0/token
+
+# Azure AD Web App Client ID
+# Get this from Azure Portal > App registrations > Your Web App > Overview > Application (client) ID
+# This is DIFFERENT from the UI SPA client ID - server uses a confidential client
+# server.client-id=your-web-app-client-id-here
+
+# Azure AD Web App Client Secret
+# Get this from Azure Portal > App registrations > Your Web App > Certificates & secrets
+# IMPORTANT: This is a secret value - never commit to version control
+# Only store in .local files or environment variables
+# server.client-secret=your-web-app-client-secret-here
