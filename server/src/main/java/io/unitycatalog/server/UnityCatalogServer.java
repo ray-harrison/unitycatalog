@@ -134,11 +134,19 @@ public class UnityCatalogServer {
     UnityCatalogAuthorizer authorizer =
         initializeAuthorizer(
             unityCatalogServerBuilder.serverProperties, hibernateConfigurator, repositories);
+    // Create AuthService early so it can be used by both API services and security decorators
+    AuthService authService =
+        new AuthService(securityContext, unityCatalogServerBuilder.serverProperties, repositories);
     // Init services
-    addApiServices(armeriaServerBuilder, unityCatalogServerBuilder, authorizer, repositories);
+    addApiServices(
+        armeriaServerBuilder, unityCatalogServerBuilder, authorizer, repositories, authService);
     // Init security decorators
     addSecurityDecorators(
-        armeriaServerBuilder, unityCatalogServerBuilder.serverProperties, authorizer, repositories);
+        armeriaServerBuilder,
+        unityCatalogServerBuilder.serverProperties,
+        authorizer,
+        repositories,
+        authService);
 
     return armeriaServerBuilder.build();
   }
@@ -166,13 +174,13 @@ public class UnityCatalogServer {
       ServerBuilder armeriaServerBuilder,
       UnityCatalogServer.Builder unityCatalogServerBuilder,
       UnityCatalogAuthorizer authorizer,
-      Repositories repositories) {
+      Repositories repositories,
+      AuthService authService) {
     LOGGER.info("Adding Unity Catalog API services...");
     CloudCredentialVendor cloudCredentialVendor = unityCatalogServerBuilder.cloudCredentialVendor;
 
     // Add support for Unity Catalog APIs
-    AuthService authService =
-        new AuthService(securityContext, unityCatalogServerBuilder.serverProperties, repositories);
+    // AuthService is now passed as a parameter instead of created locally
     PermissionService permissionService = new PermissionService(authorizer, repositories);
     Scim2UserService scim2UserService = new Scim2UserService(authorizer, repositories);
     Scim2SelfService scim2SelfService = new Scim2SelfService(authorizer, repositories);
@@ -302,7 +310,8 @@ public class UnityCatalogServer {
       ServerBuilder armeriaServerBuilder,
       ServerProperties serverProperties,
       UnityCatalogAuthorizer authorizer,
-      Repositories repositories) {
+      Repositories repositories,
+      AuthService authService) {
     // TODO: eventually might want to make this secure-by-default.
     if (serverProperties.isAuthorizationEnabled()) {
       LOGGER.info("Enabling security decorators...");
@@ -316,7 +325,8 @@ public class UnityCatalogServer {
           .exclude(CONTROL_PATH + "auth/tokens")
           .build(accessDecorator);
 
-      AuthDecorator authDecorator = new AuthDecorator(securityContext, repositories);
+      AuthDecorator authDecorator =
+          new AuthDecorator(securityContext, repositories, serverProperties, authService);
       armeriaServerBuilder.routeDecorator().pathPrefix(BASE_PATH).build(authDecorator);
       armeriaServerBuilder
           .routeDecorator()

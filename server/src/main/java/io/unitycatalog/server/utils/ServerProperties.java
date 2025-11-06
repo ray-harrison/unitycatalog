@@ -246,4 +246,62 @@ public class ServerProperties {
               + "To enable it, set 'server.managed-table.enabled=true' in server.properties");
     }
   }
+
+  /**
+   * Get the JWKS HTTP client type (armeria or java). Default is "armeria" for high-performance
+   * async requests.
+   *
+   * @return HTTP client type: "armeria" or "java"
+   */
+  public String getJwksHttpClient() {
+    return getProperty("server.jwks.http-client", "armeria");
+  }
+
+  /**
+   * Get the JWKS cache TTL (time-to-live) for cached JWKS keys. Default is 24 hours (86400
+   * seconds).
+   *
+   * @return Cache TTL in seconds
+   */
+  public long getJwksCacheTtl() {
+    String ttl = getProperty("server.jwks.cache-ttl", "86400");
+    try {
+      return Long.parseLong(ttl);
+    } catch (NumberFormatException e) {
+      LOGGER.warn("Invalid JWKS cache TTL '{}', using default 86400 seconds", ttl);
+      return 86400L;
+    }
+  }
+
+  /**
+   * Get the maximum number of JWKS keys to cache. When limit is reached, least-recently-used keys
+   * are evicted. Default is 10 keys.
+   *
+   * @return Maximum number of cached keys
+   */
+  public int getJwksCacheMaxKeys() {
+    String maxKeys = getProperty("server.jwks.cache-max-keys", "10");
+    try {
+      return Integer.parseInt(maxKeys);
+    } catch (NumberFormatException e) {
+      LOGGER.warn("Invalid JWKS cache max keys '{}', using default 10", maxKeys);
+      return 10;
+    }
+  }
+
+  /**
+   * Get the JWKS rate limit (maximum requests per second). Protects against JWKS endpoint abuse
+   * during key rotation or attacks. Default is 10 requests per second.
+   *
+   * @return Rate limit in requests per second
+   */
+  public int getJwksRateLimit() {
+    String rateLimit = getProperty("server.jwks.rate-limit", "10");
+    try {
+      return Integer.parseInt(rateLimit);
+    } catch (NumberFormatException e) {
+      LOGGER.warn("Invalid JWKS rate limit '{}', using default 10", rateLimit);
+      return 10;
+    }
+  }
 }
