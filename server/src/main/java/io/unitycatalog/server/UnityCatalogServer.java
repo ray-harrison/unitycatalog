@@ -61,6 +61,7 @@ import io.unitycatalog.server.utils.VersionUtils;
 import io.vertx.core.Verticle;
 import io.vertx.core.Vertx;
 import java.nio.file.Path;
+import java.util.List;
 import org.apache.logging.log4j.core.config.Configurator;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -138,6 +139,8 @@ public class UnityCatalogServer {
     AuthService authService =
         new AuthService(
             securityContext, unityCatalogServerBuilder.serverProperties, repositories, authorizer);
+    // Log admin bootstrap configuration
+    logAdminBootstrapConfig(unityCatalogServerBuilder.serverProperties);
     // Init services
     addApiServices(
         armeriaServerBuilder, unityCatalogServerBuilder, authorizer, repositories, authService);
@@ -365,6 +368,28 @@ public class UnityCatalogServer {
   public void stop() {
     server.stop().join();
     LOGGER.info("Unity Catalog server stopped.");
+  }
+
+  private static void logAdminBootstrapConfig(ServerProperties serverProperties) {
+    List<String> adminEmails = serverProperties.getAdminEmails();
+    List<String> adminDomains = serverProperties.getAdminEmailDomains();
+
+    if (adminEmails.isEmpty() && adminDomains.isEmpty()) {
+      LOGGER.info("Admin bootstrap: Not configured (no admin allowlist)");
+      return;
+    }
+
+    LOGGER.info(
+        "Admin bootstrap: Configured with {} allowlisted email(s) and {} domain wildcard(s)",
+        adminEmails.size(),
+        adminDomains.size());
+    // Log counts only, not actual email addresses for security
+    if (!adminEmails.isEmpty()) {
+      LOGGER.debug("Admin allowlist includes {} specific email address(es)", adminEmails.size());
+    }
+    if (!adminDomains.isEmpty()) {
+      LOGGER.debug("Admin allowlist includes {} domain wildcard(s)", adminDomains.size());
+    }
   }
 
   private void printArt() {
