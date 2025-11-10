@@ -376,3 +376,223 @@ REACT_APP_GOOGLE_CLIENT_ID=
 Restarting your UC server (i.e., `bin/start-uc-server`) and UI (i.e., `yarn start`) will open a new browser window
 with the Google Auth login. In this case, there will be **no profile menu nor any login screen** but you will be able
 to see your UC assets.
+
+## Admin Bootstrap via Email Allowlist
+
+Unity Catalog supports automatic METASTORE OWNER privilege grants for specified users on first authentication. This
+feature enables bootstrapping the first admin user(s) without requiring manual privilege grants via the admin token.
+
+### Overview
+
+When authentication is enabled (`server.authorization=enable`), Unity Catalog can automatically grant METASTORE OWNER
+privileges to users whose email addresses match a configured allowlist. This happens during user auto-provisioning on
+first login.
+
+**Key Characteristics:**
+- Privileges granted **only on first authentication** (user creation)
+- Works with Azure AD, Google Identity, or any OIDC provider
+- Supports both specific email addresses and domain wildcards
+- Email matching is case-insensitive
+- Removing users from allowlist does **not** revoke existing privileges
+
+### Configuration
+
+Admin allowlist configuration can be added to `etc/conf/server.properties` or preferably to
+`etc/conf/server.properties.local` (for secure, git-ignored configuration).
+
+#### Specific Email Addresses
+
+Grant admin privileges to exact email addresses:
+
+```properties
+# Comma-separated list of admin email addresses
+server.bootstrap.admin-emails=admin@company.com,dba@company.com,ops@company.com
+```
+
+#### Domain Wildcards
+
+Grant admin privileges to all users in specific email domains:
+
+```properties
+# Comma-separated list of domain patterns (must start with @)
+server.bootstrap.admin-email-domains=@company.com,@partner.org
+```
+
+**Important:** Domain matching is exact - subdomains do **not** match:
+- `user@company.com` matches `@company.com` ✓
+- `user@sub.company.com` does **not** match `@company.com` ✗
+
+#### Mixed Configuration
+
+You can use both properties together:
+
+```properties
+# Specific external admins
+server.bootstrap.admin-emails=contractor@external.com
+
+# All internal employees
+server.bootstrap.admin-email-domains=@yourcompany.com
+```
+
+### Usage Example with Azure AD
+
+1. **Configure Azure AD authentication** in `etc/conf/server.properties`:
+
+```properties
+server.authorization=enable
+server.authorization-url=https://login.microsoftonline.com/<tenant-id>/oauth2/v2.0/authorize
+server.token-url=https://login.microsoftonline.com/<tenant-id>/oauth2/v2.0/token
+server.client-id=<your-client-id>
+server.client-secret=<your-client-secret>
+```
+
+2. **Configure admin allowlist** in `etc/conf/server.properties.local`:
+
+```properties
+server.bootstrap.admin-emails=admin@yourcompany.com
+```
+
+3. **Restart Unity Catalog server**:
+
+```sh
+bin/start-uc-server
+```
+
+4. **Authenticate as allowlisted user**:
+
+```sh
+bin/uc auth login --output jsonPretty
+```
+
+This will open your browser for Azure AD authentication. Upon successful login:
+- User account is auto-provisioned in Unity Catalog database
+- Admin allowlist check runs automatically
+- METASTORE OWNER privilege granted if email matches
+- Authentication token returned for subsequent operations
+
+5. **Verify admin privileges**:
+
+```sh
+# Save token from previous step
+export TOKEN='<access_token from login output>'
+
+# Test admin operations
+bin/uc --auth_token $TOKEN catalog create --name admin_test_catalog
+bin/uc --auth_token $TOKEN catalog list
+```
+
+### Server Logs
+
+Watch for admin bootstrap activity in server logs:
+
+```sh
+tail -f logs/*.log | grep -i "allowlist\|admin privileges"
+```
+
+**Successful admin grant:**
+```
+INFO  [AuthService] Auto-provisioned Azure AD user: Admin User (admin@company.com), objectId: {object-id}
+INFO  [AuthService] Admin privileges (METASTORE OWNER) granted via allowlist: email=admin@company.com, userId={uuid}
+```
+
+**User not in allowlist:**
+```
+DEBUG [AuthService] User email not in admin allowlist, no privileges granted: user@otherdomain.com
+```
+
+**Allowlist not configured:**
+```
+DEBUG [AuthService] Admin allowlist not configured, skipping privilege check
+```
+
+### Security Considerations
+
+!!! warning "Production Security Best Practices"
+    - **Review allowlist regularly** - Users receive the highest privilege level (METASTORE OWNER)
+    - **Use specific emails over domain wildcards** - Domain wildcards grant admin to ALL matching users
+    - **Store configuration in .local files** - Never commit real email addresses to version control
+    - **Privilege persistence** - Removing from allowlist does NOT revoke existing privileges
+    - **First login only** - Users who existed before allowlist was configured won't automatically receive privileges
+
+### Secure Configuration with .local Files
+
+To keep email addresses out of version control, use `.local` files which are automatically ignored by git:
+
+1. **Copy example file**:
+
+```sh
+cp etc/conf/server.properties.local.example etc/conf/server.properties.local
+```
+
+2. **Edit with your email addresses**:
+
+```sh
+# Edit server.properties.local
+server.bootstrap.admin-emails=your-email@company.com
+```
+
+3. **Verify git ignores the file**:
+
+```sh
+git status  # server.properties.local should not appear
+```
+
+Properties in `server.properties.local` automatically override properties in `server.properties`.
+
+### Helm Chart Configuration
+
+For Kubernetes deployments, configure admin bootstrap via Helm values:
+
+```yaml
+# values.yaml or custom-values.yaml
+auth:
+  enabled: true
+  provider: other  # Azure AD or OIDC
+  authorizationUrl: https://login.microsoftonline.com/<tenant-id>/oauth2/v2.0/authorize
+  tokenUrl: https://login.microsoftonline.com/<tenant-id>/oauth2/v2.0/token
+  clientSecretName: uc-oauth-secret
+
+server:
+  bootstrap:
+    # Grant admin to specific users
+    adminEmails:
+      - admin@company.com
+      - dba@company.com
+    # OR grant admin to entire domain
+    adminEmailDomains:
+      - "@company.com"
+```
+
+Deploy with:
+
+```sh
+helm install unitycatalog . -f custom-values.yaml
+```
+
+### Troubleshooting
+
+**User not receiving admin privileges:**
+
+1. Check server logs during authentication for admin allowlist messages
+2. Verify email exactly matches configuration (case-insensitive)
+3. Ensure `server.authorization=enable` is set
+4. Confirm user is authenticating for the **first time** (admin check runs only on user creation)
+5. If user existed before allowlist was configured, delete user and re-authenticate
+
+**Removing pre-existing user:**
+
+```sh
+# Stop server
+pkill -f UnityCatalogServer
+
+# Delete database (WARNING: removes ALL users)
+rm -rf etc/db/*
+
+# Restart server
+bin/start-uc-server &
+
+# Re-authenticate - user will be re-created with allowlist check
+bin/uc auth login
+```
+
+For detailed testing scenarios, see `specs/003-admin-bootstrap-allowlist/MANUAL_VERIFICATION.md` in the source repository.

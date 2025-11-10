@@ -332,6 +332,59 @@ server:
     #
     extraProperties:
 
+  bootstrap:
+    # -- (array) Admin email addresses for automatic METASTORE OWNER privilege grant
+    # @default -- not set
+    # @raw
+    #
+    # Users whose email addresses exactly match entries in this list will automatically
+    # receive METASTORE OWNER privileges on first Azure AD authentication.
+    #
+    # Example:
+    # ```yaml
+    # bootstrap:
+    #   adminEmails:
+    #     - admin@company.com
+    #     - dba@company.com
+    # ```
+    #
+    # Security Notes:
+    # - Email matching is case-insensitive
+    # - Privileges granted only on first login (user creation)
+    # - Removing from list does NOT revoke existing privileges
+    # - Use with Azure AD authentication (server.authorization=enable)
+    #
+    adminEmails: []
+
+    # -- (array) Admin email domain wildcards for automatic METASTORE OWNER privilege grant
+    # @default -- not set
+    # @raw
+    #
+    # Users whose email addresses match these domain patterns will automatically
+    # receive METASTORE OWNER privileges on first Azure AD authentication.
+    #
+    # Example:
+    # ```yaml
+    # bootstrap:
+    #   adminEmailDomains:
+    #     - "@company.com"
+    #     - "@partner.org"
+    # ```
+    #
+    # Domain Format:
+    # - Must start with @ symbol (e.g., "@company.com")
+    # - Matches exact domain only (not subdomains)
+    # - user@company.com matches @company.com
+    # - user@sub.company.com does NOT match @company.com
+    #
+    # Security Notes:
+    # - Domain matching is case-insensitive
+    # - Consider security implications of broad domain wildcards
+    # - Prefer specific emails over domain wildcards in production
+    # - Use with Azure AD authentication (server.authorization=enable)
+    #
+    adminEmailDomains: []
+
   # -- (string) Server hibernate configuration template override
   # @default -- not set
   # @raw

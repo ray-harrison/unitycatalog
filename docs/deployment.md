@@ -107,3 +107,41 @@ This guide outlines how to deploy the Unity Catalog server.
     ```
 
 - Modify the `jars/classpath` file and add path to your jdbc driver.
+
+## Configuring Admin Bootstrap
+
+When deploying Unity Catalog with authentication enabled, you can configure automatic admin privilege grants for initial
+administrators. This eliminates the need to manually grant METASTORE OWNER privileges using the admin token.
+
+### Using .local files for secure configuration
+
+For production deployments, use `.local` configuration files to keep sensitive data out of version control:
+
+1. Create a local configuration file:
+
+    ```sh
+    cp etc/conf/server.properties.local.example etc/conf/server.properties.local
+    ```
+
+2. Edit `etc/conf/server.properties.local` with your admin email addresses:
+
+    ```properties
+    # Specific admin users
+    server.bootstrap.admin-emails=admin@yourcompany.com,dba@yourcompany.com
+
+    # OR grant admin to entire domain
+    server.bootstrap.admin-email-domains=@yourcompany.com
+    ```
+
+3. Verify the `.local` file is not tracked by git (`.local` files are automatically git-ignored)
+
+Properties in `.local` files automatically override properties in the base configuration files.
+
+### Admin bootstrap behavior
+
+- Admin privileges (METASTORE OWNER) are granted **only on first authentication** (user creation)
+- Works with Azure AD, Google Identity, or any OIDC provider
+- Email matching is case-insensitive
+- Removing users from allowlist does **not** revoke existing privileges
+
+For detailed configuration options and examples, see [Authentication and Authorization](server/auth.md#admin-bootstrap-via-email-allowlist).

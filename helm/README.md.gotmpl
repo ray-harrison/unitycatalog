@@ -15,6 +15,7 @@ using the [Helm](https://github.com/helm/helm) package manager.
 - Supports OAuth authentication
 - Supports file H2DB and PostgreSQL as a database
 - Customizable configuration for server and UI using Helm values
+- **Admin bootstrap via email allowlist** - Automatically grant METASTORE OWNER privileges to specified users on first login
 
 ## Installing the Chart
 To install the chart with the release name `unitycatalog`:
@@ -22,6 +23,43 @@ To install the chart with the release name `unitycatalog`:
 ```sh
 helm install unitycatalog .
 ```
+
+### Installing with Admin Bootstrap Configuration
+To automatically grant METASTORE OWNER privileges to specific users on first Azure AD login:
+
+```sh
+# Create values file with admin configuration
+cat <<EOF > admin-values.yaml
+auth:
+  enabled: true
+  provider: other  # Use Azure AD or other OIDC provider
+  authorizationUrl: https://login.microsoftonline.com/<tenant-id>/oauth2/v2.0/authorize
+  tokenUrl: https://login.microsoftonline.com/<tenant-id>/oauth2/v2.0/token
+  clientSecretName: uc-oauth-secret
+  redirectPort: 8080
+
+server:
+  bootstrap:
+    # Grant admin privileges to specific email addresses
+    adminEmails:
+      - admin@company.com
+      - dba@company.com
+    # OR grant admin privileges to all users in specific domains
+    adminEmailDomains:
+      - "@company.com"
+      - "@partner.org"
+EOF
+
+# Install with admin bootstrap configuration
+helm install unitycatalog . -f admin-values.yaml
+```
+
+**Security Notes:**
+- Admin privileges are granted only on first authentication (user creation)
+- Email matching is case-insensitive
+- Removing users from allowlist does NOT revoke existing privileges
+- Consider using specific emails instead of broad domain wildcards in production
+- Requires `auth.enabled: true` with Azure AD or OIDC authentication
 
 ## Uninstalling the Chart
 To uninstall the `unitycatalog` chart:

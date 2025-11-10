@@ -40,6 +40,14 @@ gcs.jsonKeyFilePath.{{ $index }}=/etc/conf/gcs-credentials-{{ $index }}.json
 {{- end }}
 {{- end }}
 
+{{- if .Values.server.bootstrap.adminEmails }}
+server.bootstrap.admin-emails={{ .Values.server.bootstrap.adminEmails | join "," }}
+{{- end }}
+
+{{- if .Values.server.bootstrap.adminEmailDomains }}
+server.bootstrap.admin-email-domains={{ .Values.server.bootstrap.adminEmailDomains | join "," }}
+{{- end }}
+
 {{- range $k, $v := .Values.server.config.extraProperties }}
 {{ $k }}={{ $v }}
 {{- end }}

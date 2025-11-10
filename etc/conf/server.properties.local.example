@@ -1,0 +1,107 @@
+# Unity Catalog Server Local Configuration Example
+#
+# This file demonstrates how to configure admin bootstrap allowlist using a .local file.
+# Copy this file to `server.properties.local` and customize with your actual values.
+#
+# IMPORTANT SECURITY NOTES:
+# - .local files are automatically ignored by git (see .gitignore)
+# - NEVER commit .local files or files containing real email addresses to version control
+# - Properties in server.properties.local OVERRIDE properties in server.properties
+# - Use .local files for environment-specific and sensitive configuration
+
+# ============================================================================
+# Admin Bootstrap Configuration
+# ============================================================================
+#
+# Automatically grant METASTORE OWNER privileges to specified users on first
+# Azure AD authentication. This enables bootstrapping the first admin user(s)
+# without manual privilege grants.
+#
+# REQUIREMENTS:
+# - Azure AD (or other OIDC) authentication must be enabled
+# - Set server.authorization=enable in server.properties
+#
+# SECURITY CONSIDERATIONS:
+# - Users receive METASTORE OWNER - the highest privilege level
+# - Privileges granted only on first login (user creation)
+# - Removing from allowlist does NOT revoke existing privileges
+# - Review allowlist regularly and keep it minimal
+# - Prefer specific emails over broad domain wildcards in production
+
+# ----------------------------------------------------------------------------
+# Admin Emails: Specific email addresses
+# ----------------------------------------------------------------------------
+# Comma-separated list of exact email addresses that should receive admin
+# privileges. Email matching is case-insensitive.
+#
+# Example: Grant admin to specific users
+server.bootstrap.admin-emails=admin@yourcompany.com,dba@yourcompany.com
+
+# Example: Single admin user
+# server.bootstrap.admin-emails=admin@yourcompany.com
+
+# Example: Multiple admins across different domains
+# server.bootstrap.admin-emails=alice@company.com,bob@partner.org,charlie@company.com
+
+# ----------------------------------------------------------------------------
+# Admin Email Domains: Domain wildcards
+# ----------------------------------------------------------------------------
+# Comma-separated list of domain patterns (must start with @). ALL users whose
+# email matches these domains will receive admin privileges on first login.
+#
+# IMPORTANT: Domain matching is EXACT - subdomains do NOT match:
+# - user@company.com matches @company.com ✓
+# - user@sub.company.com does NOT match @company.com ✗
+#
+# Example: Grant admin to all users in your organization's domain
+# server.bootstrap.admin-email-domains=@yourcompany.com
+
+# Example: Multiple domains (use with caution in production)
+# server.bootstrap.admin-email-domains=@yourcompany.com,@partner.org
+
+# ----------------------------------------------------------------------------
+# Mixed Configuration: Both specific emails and domains
+# ----------------------------------------------------------------------------
+# You can use both properties together. Users matching either condition will
+# receive admin privileges.
+#
+# Example: Specific external admins + all internal users
+# server.bootstrap.admin-emails=contractor@external.com,consultant@freelance.org
+# server.bootstrap.admin-email-domains=@yourcompany.com
+
+# ============================================================================
+# Additional Configuration
+# ============================================================================
+#
+# You can include other environment-specific properties in this .local file:
+
+# Azure AD Authentication Configuration
+# server.authorization=enable
+# server.authorization-url=https://login.microsoftonline.com/<tenant-id>/oauth2/v2.0/authorize
+# server.token-url=https://login.microsoftonline.com/<tenant-id>/oauth2/v2.0/token
+# server.client-id=<your-client-id>
+# server.client-secret=<your-client-secret>
+
+# Database Configuration (for non-default database)
+# Use hibernate.properties.local for database connection strings
+
+# Logging Configuration
+# Use server.log4j2.properties.local for log level overrides
+
+# ============================================================================
+# Usage Instructions
+# ============================================================================
+#
+# 1. Copy this file: cp server.properties.local.example server.properties.local
+# 2. Edit server.properties.local with your actual email addresses/domains
+# 3. Verify server.properties.local is NOT staged for git commit
+# 4. Restart Unity Catalog server to load new configuration
+# 5. Authenticate with an allowlisted user via Azure AD
+# 6. Verify admin privileges: bin/uc catalog create --name test_catalog
+#
+# Troubleshooting:
+# - Check server logs for "Admin privileges granted via allowlist" message
+# - Admin allowlist check runs only on FIRST login (user creation)
+# - If user existed before allowlist configured, delete and re-authenticate
+# - Ensure server.authorization=enable is set
+# - See specs/003-admin-bootstrap-allowlist/MANUAL_VERIFICATION.md for detailed testing guide
