@@ -29,24 +29,30 @@ import io.unitycatalog.control.model.OAuthTokenExchangeInfo;
 import io.unitycatalog.control.model.TokenEndpointExtensionType;
 import io.unitycatalog.control.model.TokenType;
 import io.unitycatalog.control.model.User;
+import io.unitycatalog.server.auth.UnityCatalogAuthorizer;
 import io.unitycatalog.server.exception.ErrorCode;
 import io.unitycatalog.server.exception.GlobalExceptionHandler;
 import io.unitycatalog.server.exception.OAuthInvalidRequestException;
 import io.unitycatalog.server.model.AzureAdTokenClaims;
 import io.unitycatalog.server.model.UserIdentity;
+import io.unitycatalog.server.persist.MetastoreRepository;
 import io.unitycatalog.server.persist.Repositories;
 import io.unitycatalog.server.persist.UserRepository;
 import io.unitycatalog.server.persist.model.CreateUser;
+import io.unitycatalog.server.persist.model.Privileges;
 import io.unitycatalog.server.security.JwtClaim;
 import io.unitycatalog.server.security.SecurityContext;
+import io.unitycatalog.server.utils.AdminAllowlistValidator;
 import io.unitycatalog.server.utils.JwksOperations;
 import io.unitycatalog.server.utils.ServerProperties;
 import io.unitycatalog.server.utils.ServerProperties.Property;
 import java.lang.reflect.ParameterizedType;
 import java.nio.charset.StandardCharsets;
 import java.time.Duration;
+import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.util.UUID;
 import java.util.stream.Collectors;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -56,6 +62,8 @@ public class AuthService {
 
   private static final Logger LOGGER = LoggerFactory.getLogger(AuthService.class);
   private final UserRepository userRepository;
+  private final MetastoreRepository metastoreRepository;
+  private final UnityCatalogAuthorizer authorizer;
 
   private final SecurityContext securityContext;
   private final JwksOperations jwksOperations;
@@ -66,11 +74,14 @@ public class AuthService {
   public AuthService(
       SecurityContext securityContext,
       ServerProperties serverProperties,
-      Repositories repositories) {
+      Repositories repositories,
+      UnityCatalogAuthorizer authorizer) {
     this.securityContext = securityContext;
     this.jwksOperations = new JwksOperations(securityContext);
     this.serverProperties = serverProperties;
     this.userRepository = repositories.getUserRepository();
+    this.metastoreRepository = repositories.getMetastoreRepository();
+    this.authorizer = authorizer;
   }
 
   /**
@@ -254,6 +265,10 @@ public class AuthService {
                 .build();
 
         User newUser = userRepository.createUser(createUser);
+
+        // Check admin allowlist and grant privileges if applicable
+        checkAdminAllowlistAndGrant(newUser);
+
         LOGGER.info(
             "Auto-provisioned Azure AD user: {} ({}), objectId: {}",
             newUser.getName(),
@@ -297,6 +312,51 @@ public class AuthService {
 
     throw new OAuthInvalidRequestException(
         ErrorCode.INVALID_ARGUMENT, "User not allowed: " + subject);
+  }
+
+  /**
+   * Check if the user's email is in the admin allowlist and grant METASTORE OWNER privileges if so.
+   * This method is called after Azure AD user auto-provisioning to bootstrap admin users based on
+   * configuration.
+   *
+   * @param user The newly created user to check against the allowlist
+   */
+  private void checkAdminAllowlistAndGrant(User user) {
+    try {
+      List<String> allowedEmails = serverProperties.getAdminEmails();
+      List<String> allowedDomains = serverProperties.getAdminEmailDomains();
+
+      // If allowlist is empty, skip processing (no admins to bootstrap)
+      if (allowedEmails.isEmpty() && allowedDomains.isEmpty()) {
+        LOGGER.debug(
+            "Admin allowlist not configured, skipping privilege check for user: {}",
+            user.getEmail());
+        return;
+      }
+
+      String userEmail = user.getEmail();
+      if (userEmail == null || userEmail.trim().isEmpty()) {
+        LOGGER.debug("User has no email, skipping admin allowlist check");
+        return;
+      }
+
+      // Check if user email matches allowlist
+      if (AdminAllowlistValidator.isEmailInAllowlist(userEmail, allowedEmails, allowedDomains)) {
+        UUID metastoreId = metastoreRepository.getMetastoreId();
+        authorizer.grantAuthorization(UUID.fromString(user.getId()), metastoreId, Privileges.OWNER);
+        LOGGER.info(
+            "Admin privileges (METASTORE OWNER) granted via allowlist: email={}, userId={}",
+            user.getEmail(),
+            user.getId());
+      } else {
+        LOGGER.debug(
+            "User email not in admin allowlist, no privileges granted: {}", user.getEmail());
+      }
+    } catch (Exception e) {
+      // Fail-open: Log error but don't block authentication
+      LOGGER.error(
+          "Error checking admin allowlist for user {}: {}", user.getEmail(), e.getMessage(), e);
+    }
   }
 
   private Cookie createCookie(String key, String value, String path, String maxAge) {

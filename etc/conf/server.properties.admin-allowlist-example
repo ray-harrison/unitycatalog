@@ -1,0 +1,100 @@
+# Admin Bootstrap Allowlist Configuration Example
+# This file demonstrates how to configure the admin bootstrap via email allowlist feature
+# Copy relevant sections to your server.properties.local for testing
+
+# ============================================================================
+# Admin Bootstrap via Email Allowlist (Feature 003)
+# ============================================================================
+
+# Specific email addresses that should be granted METASTORE OWNER privileges
+# on first login via Azure AD (or other OIDC providers)
+# Comma-separated list, case-insensitive
+# Example: admin@company.com,superuser@company.com
+server.bootstrap.admin-emails=
+
+# Email domain wildcards for admin privileges
+# Users with emails ending in these domains will be granted METASTORE OWNER
+# Must start with @ symbol. Comma-separated list.
+# Example: @company.com,@partner.org
+server.bootstrap.admin-email-domains=
+
+# ============================================================================
+# Example Configurations for Testing
+# ============================================================================
+
+# Example 1: Single admin email
+# server.bootstrap.admin-emails=admin@example.com
+
+# Example 2: Multiple specific admin emails
+# server.bootstrap.admin-emails=alice@company.com,bob@company.com,charlie@company.com
+
+# Example 3: Domain wildcard (all users from company.com become admins)
+# server.bootstrap.admin-email-domains=@company.com
+
+# Example 4: Multiple domains
+# server.bootstrap.admin-email-domains=@company.com,@partner.org,@trusted.net
+
+# Example 5: Combination of specific emails and domains
+# server.bootstrap.admin-emails=admin@example.com,superuser@other.com
+# server.bootstrap.admin-email-domains=@company.com,@partner.org
+
+# ============================================================================
+# Manual Verification Test Scenarios
+# ============================================================================
+
+# Scenario T029: First login with allowlisted email
+# 1. Configure: server.bootstrap.admin-emails=your-azure-email@domain.com
+# 2. Start server: bin/start-uc-server
+# 3. Login via Azure AD with matching email
+# 4. Verify: Check logs for "Admin privileges (METASTORE OWNER) granted via allowlist"
+# 5. Verify: User can create catalogs and perform admin operations
+
+# Scenario T030: Login with non-allowlisted email
+# 1. Configure: server.bootstrap.admin-emails=admin@example.com (different from your email)
+# 2. Start server: bin/start-uc-server
+# 3. Login via Azure AD with non-matching email
+# 4. Verify: Check logs for "User email not in admin allowlist, no privileges granted"
+# 5. Verify: User exists but cannot perform admin operations
+
+# Scenario T031: Domain wildcard match
+# 1. Configure: server.bootstrap.admin-email-domains=@yourcompany.com
+# 2. Start server: bin/start-uc-server
+# 3. Login via Azure AD with email ending in @yourcompany.com
+# 4. Verify: Admin privileges granted
+
+# Scenario T032: Empty allowlist (no bootstrap)
+# 1. Leave server.bootstrap.admin-emails and server.bootstrap.admin-email-domains empty
+# 2. Start server: bin/start-uc-server
+# 3. Login via Azure AD
+# 4. Verify: Check logs for "Admin allowlist not configured, skipping privilege check"
+# 5. Verify: User auto-provisioned but no admin privileges
+
+# Scenario T033: Case-insensitive matching
+# 1. Configure: server.bootstrap.admin-emails=admin@example.com (lowercase)
+# 2. Login via Azure AD with ADMIN@EXAMPLE.COM (uppercase)
+# 3. Verify: Admin privileges granted (case-insensitive match)
+
+# Scenario T034: Server restart persistence
+# 1. Login as allowlisted user (receive METASTORE OWNER)
+# 2. Stop server: pkill -f UnityCatalogServer
+# 3. Remove user from allowlist in configuration
+# 4. Start server: bin/start-uc-server
+# 5. Login again with same user
+# 6. Verify: User still has METASTORE OWNER (privilege persists, not revoked)
+
+# Scenario T035: Multiple admins coexistence
+# 1. Configure: server.bootstrap.admin-emails=admin1@example.com,admin2@example.com
+# 2. Login with admin1@example.com -> receives METASTORE OWNER
+# 3. Login with admin2@example.com -> receives METASTORE OWNER
+# 4. Verify: Both users have admin privileges independently
+
+# ============================================================================
+# Important Notes
+# ============================================================================
+
+# 1. Changes require server restart to take effect
+# 2. Privileges are granted on FIRST login only (idempotent)
+# 3. Removing email from allowlist does NOT revoke existing privileges
+# 4. Empty allowlist = no automatic admin bootstrapping
+# 5. Works alongside existing "admin" user (from UnityAccessUtil.initializeAdmin)
+# 6. Use .local files for production (never commit secrets to git)

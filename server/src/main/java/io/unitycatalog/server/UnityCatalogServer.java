@@ -136,7 +136,8 @@ public class UnityCatalogServer {
             unityCatalogServerBuilder.serverProperties, hibernateConfigurator, repositories);
     // Create AuthService early so it can be used by both API services and security decorators
     AuthService authService =
-        new AuthService(securityContext, unityCatalogServerBuilder.serverProperties, repositories);
+        new AuthService(
+            securityContext, unityCatalogServerBuilder.serverProperties, repositories, authorizer);
     // Init services
     addApiServices(
         armeriaServerBuilder, unityCatalogServerBuilder, authorizer, repositories, authService);
