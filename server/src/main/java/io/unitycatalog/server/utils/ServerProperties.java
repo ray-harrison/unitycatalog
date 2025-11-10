@@ -10,6 +10,7 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 import java.util.Properties;
 import org.slf4j.Logger;
@@ -272,5 +273,48 @@ public class ServerProperties {
       LOGGER.warn("Invalid JWKS rate limit '{}', using default 10", rateLimit);
       return 10;
     }
+  }
+
+  /**
+   * Get the list of admin email addresses for bootstrap auto-provisioning.
+   *
+   * <p>Users whose email addresses match this allowlist will automatically receive METASTORE OWNER
+   * privileges on first authentication.
+   *
+   * @return List of normalized email addresses (trimmed, lowercase), empty list if not configured
+   */
+  public List<String> getAdminEmails() {
+    String emails = getProperty("server.bootstrap.admin-emails", "");
+    if (emails.trim().isEmpty()) {
+      return java.util.Collections.emptyList();
+    }
+    return java.util.Arrays.stream(emails.split(","))
+        .map(String::trim)
+        .map(String::toLowerCase)
+        .filter(s -> !s.isEmpty())
+        .distinct()
+        .collect(java.util.stream.Collectors.toList());
+  }
+
+  /**
+   * Get the list of admin email domain patterns for bootstrap auto-provisioning.
+   *
+   * <p>Users whose email addresses match these domain wildcards (e.g., @company.com) will
+   * automatically receive METASTORE OWNER privileges on first authentication.
+   *
+   * @return List of normalized domain patterns (trimmed, lowercase, @ prefix), empty list if not
+   *     configured
+   */
+  public List<String> getAdminEmailDomains() {
+    String domains = getProperty("server.bootstrap.admin-email-domains", "");
+    if (domains.trim().isEmpty()) {
+      return java.util.Collections.emptyList();
+    }
+    return java.util.Arrays.stream(domains.split(","))
+        .map(String::trim)
+        .map(String::toLowerCase)
+        .filter(s -> !s.isEmpty() && s.startsWith("@"))
+        .distinct()
+        .collect(java.util.stream.Collectors.toList());
   }
 }
